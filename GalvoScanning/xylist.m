@@ -1,0 +1,3 @@
+destListx = [[-2.5:1:2.5],[-2.5:1:2.5],[-3.5:1:3.5],[-3.5:1:3.5],[-3.5:1:3.5],[-3.5:1:3.5],[-3.5:1:3.5],[-3.5:1:3.5],[-3.5:1:3.5],[-1.5:1:1.5],2.5,-2.5]';%these are based off my surgeries
+destListy = [repmat(-3,6,1);repmat(-2,6,1);repmat(-1,8,1);repmat(0,8,1);repmat(1,8,1);repmat(2,8,1);repmat(3,8,1);repmat(4,8,1);repmat(5,8,1);repmat(6,4,1);repmat(8,2,1)];% the last two numbers are on the headplate as negative controls, %the y mirror is opposite so need to flip it
+destList = [destListx,destListy];
