@@ -19,7 +19,8 @@ subjects = pd.DataFrame(all_sub)
 
 lesion_train_sub = pd.DataFrame(subject.Subject * subject.SubjectLab & 'subject_nickname = "CSK-les-006"' & 'subject_nickname = "CSK-les-007"' & 'subject_nickname = "CSK-les-008"')
 lesion_then_train = ["CSK-les-006","CSK-les-007","CSK-les-008"]
-train_then_lesion = []        
+train_then_lesion = ["CSK-IBL-003","CSK-IBL-005"]  
+lesion_date = ["2019-04-07","2019-05-07"]      
 learning = pd.DataFrame(columns=['mouse','lab','learned','date_learned','training_time','perf_easy','n_trials','training_trials','threshold','bias','reaction_time','lapse_low','lapse_high','lesion'])
 for i, nickname in enumerate(subjects['subject_nickname']):
     print('Processing subject %s'%nickname)
@@ -57,7 +58,7 @@ for i, nickname in enumerate(subjects['subject_nickname']):
         trainedSessions['use']=['training' in task for task in trainedSessions['task_protocol']]
         useSessions2 = trainedSessions.loc[trainedSessions['use'] == True]
         del useSessions2['use']
-        useSessions = useSessions1.append(useSessions2,ignore_index=True, sort =True)
+        useSessions = useSessions2#useSessions1.append(useSessions2,ignore_index=True, sort =True)
         useSessions['session_date']= [i.date() for i in useSessions['session_start_time']]#takes all sessions where mouse is trained and performing training_CW and the three sessions that were used to define the mosue as trained
         first_trained_session_time = first_trained_session.fetch1('first_trained') 
         
