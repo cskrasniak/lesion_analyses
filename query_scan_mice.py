@@ -32,6 +32,7 @@ def ONE_query_scan_mice(subject, date_range):
     data_DF['rt'] = np.subtract(data_DF.response_times, data_DF.goCueTimes)
     return data_DF
 
+
 def DJ_fetch_DF(subjects, useDates):
     '''Fetches behavioral data (single trials) from dataJoint and returns it as a dataframe. You
     can restrict based on the subjects to use and the dates to retrieve data from. By default, it
