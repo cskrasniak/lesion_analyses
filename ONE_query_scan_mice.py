@@ -5,9 +5,10 @@ one = ONE()
 
 
 def ONE_query_scan_mice(subject, date_range):
-    """ A function to get relevant ALYX data for sessions from a date range for a single subject
-    subject = string of subject name, date_range = list of length 2 in format ['YYYY-MM-DD',
-    'YYYY-MM-DD']. Returns: a pandas dataframe with all trials from sessions in that date range"""
+    """Get relevant ALYX data for sessions from a date range for a single subject
+    subject = string of subject name
+    date_range = list of length 2 in format ['YYYY-MM-DD','YYYY-MM-DD'].
+    Returns: a pandas dataframe with all trials from sessions in that date range"""
     eid4 = one.search(subject=subject, date_range=date_range)
     dataset_types = ['trials.contrastRight', 'trials.feedbackType',
                      'trials.response_times', 'trials.contrastLeft',
