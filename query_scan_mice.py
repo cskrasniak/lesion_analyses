@@ -57,7 +57,7 @@ def DJ_fetch_DF(subjects, useDates):
             allSessions = pd.DataFrame(trials.fetch('subject_uuid', 'session_start_date',
                                                     'trial_id', 'trial_response_time',
                                                     'trial_response_choice',
-                                                    'trial_stim_on_time', 'signed_contrast',
+                                                    'trial_go_cue_trigger_time', 'signed_contrast',
                                                     'trial_feedback_type', as_dict=True))
         elif isinstance(useDates, list):
             trials = behavior.TrialSet.Trial & subs & 'DATE(session_start_time) \
@@ -67,9 +67,9 @@ def DJ_fetch_DF(subjects, useDates):
             trials = trials * trials.proj(session_start_date='DATE(session_start_time)')
             allSessions = pd.DataFrame(trials.fetch('subject_uuid', 'session_start_date',
                                                     'trial_id', 'trial_response_time',
-                                                    'trial_response_choice', 'trial_stim_on_time',
-                                                    'signed_contrast', 'trial_feedback_type',
-                                                    as_dict=True))
+                                                    'trial_response_choice',
+                                                    'trial_go_cue_trigger_time', 'signed_contrast',
+                                                    'trial_feedback_type', as_dict=True))
 
             useSessions = [ses.strftime('%Y-%m-%d') in useDates
                            for ses in allSessions.session_start_date]
