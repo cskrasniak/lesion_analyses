@@ -116,6 +116,10 @@ def align_laser2behavior(subjects):
                 if laserData[i][0, 2] == 1:
                     training[i]['laserPosX'] = laserData[i][:-1, 0]
                     training[i]['laserPosY'] = laserData[i][:-1, 1]
+                elif len(laserData[i]) == np.size(training[i], 0):
+                    if laserData[i][0, 2] == 1:
+                        training[i]['laserPosX'] = laserData[i][:-1, 0]
+                        training[i]['laserPosY'] = laserData[i][:-1, 1]
                 else:
                     print('skipping session {}, marked as "laser off"'.format(i))
             else:
