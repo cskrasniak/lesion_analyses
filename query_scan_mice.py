@@ -2,6 +2,7 @@ from oneibl.one import ONE
 import numpy as np
 import pandas as pd
 from ibl_pipeline import subject, behavior
+import os
 one = ONE()
 
 
@@ -40,7 +41,8 @@ def DJ_fetch_DF(subjects, useDates):
     signed contrast, and feedback type.
     subjects: list of strings, of subject names you wish to retrieve data for
     useDates: if a string of a single date, return all sessions including and after that date,
-    otherwise a list of dates in format 'YYYY-MM-DD' that you wish to include'''
+    otherwise a list of dates in format 'YYYY-MM-DD' that you wish to include. So if you want
+    data from a single day, useDates = ['YYYY-MM-DD']'''
     DF_list = []
 
     for sub in subjects:
@@ -82,3 +84,43 @@ def DJ_fetch_DF(subjects, useDates):
         allSessions['subject'] = sub
         DF_list.append(allSessions)
     return DF_list
+
+
+def align_laser2behavior(subjects):
+    '''Takes the behavior from scanningBiasedChoiceWorld and aligns it to the laser position data
+    that has been changed from a .m file to .npy and added to the subjects folder by using the
+    laser2npy.m function. this takes in a list of subjects as an argument and outputs a list of
+    dataframes that have simple behavior data as well as laser positions added to it'''
+    dataPath = "F:\Subjects"
+    allData = []
+    for sub in subjects:
+        os.chdir(dataPath)
+        days = os.listdir(sub)
+        laserData = []
+        training = []
+
+        for day in days:
+            os.chdir(dataPath)
+            os.chdir(sub)
+            runs = os.listdir(day)
+            behav = DJ_fetch_DF([sub], [day])
+            training.append(behav[0])
+
+            for run in runs:
+                os.chdir(os.path.join(dataPath, sub, day, run))
+
+                if len(os.listdir()) > 1:
+                    laserData.append(np.load("laserData"))
+        for i in range(len(laserData)):
+            if len(laserData[i]) - 1 == np.size(training[i], 0):
+                if laserData[i][0, 2] == 1:
+                    training[i]['laserPosX'] = laserData[i][:-1, 0]
+                    training[i]['laserPosY'] = laserData[i][:-1, 1]
+                else:
+                    print('skipping session {}, marked as "laser off"'.format(i))
+            else:
+                print('cannot align, laser #:' + str(len(laserData[i])) + 'trials #:' +
+                      str(np.size(training[i], 0)))
+        data = pd.concat(training)
+        allData.append(data)
+    return allData
