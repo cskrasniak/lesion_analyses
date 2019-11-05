@@ -91,6 +91,7 @@ def align_laser2behavior(subjects):
     that has been changed from a .m file to .npy and added to the subjects folder by using the
     laser2npy.m function. this takes in a list of subjects as an argument and outputs a list of
     dataframes that have simple behavior data as well as laser positions added to it'''
+
     dataPath = "F:\Subjects"
     allData = []
     for sub in subjects:
@@ -104,27 +105,33 @@ def align_laser2behavior(subjects):
             os.chdir(sub)
             runs = os.listdir(day)
             behav = DJ_fetch_DF([sub], [day])
-            training.append(behav[0])
+            behav = behav[0]
 
             for run in runs:
-                os.chdir(os.path.join(dataPath, sub, day, run))
 
-                if len(os.listdir()) > 1:
-                    laserData.append(np.load("laserData"))
-        for i in range(len(laserData)):
-            if len(laserData[i]) - 1 == np.size(training[i], 0):
-                if laserData[i][0, 2] == 1:
-                    training[i]['laserPosX'] = laserData[i][:-1, 0]
-                    training[i]['laserPosY'] = laserData[i][:-1, 1]
-                elif len(laserData[i]) == np.size(training[i], 0):
-                    if laserData[i][0, 2] == 1:
-                        training[i]['laserPosX'] = laserData[i][:-1, 0]
-                        training[i]['laserPosY'] = laserData[i][:-1, 1]
+                os.chdir(os.path.join(dataPath, sub, day, run))
+                if len(os.listdir()) >= 1:
+                    ld = np.load("laserData")
+
+                if len(ld) - 1 == np.size(behav, 0):
+                    if ld[0, 2] == 1:
+                        behav['laserPosX'] = ld[:-1, 0]
+                        behav['laserPosY'] = ld[:-1, 1]
+                        training.append(behav)
+                    else:
+                        print('skipping session {} {}, marked as "laser off"'.format(day, run))
+
+                elif len(ld) == np.size(behav, 0):
+                    if ld[0, 2] == 1:
+                        behav['laserPosX'] = ld[:, 0]
+                        behav['laserPosY'] = ld[:, 1]
+                        training.append(behav)
+                    else:
+                        print('skipping session {} {}, marked as "laser off"'.format(day, run))
+
                 else:
-                    print('skipping session {}, marked as "laser off"'.format(i))
-            else:
-                print('cannot align, laser #:' + str(len(laserData[i])) + 'trials #:' +
-                      str(np.size(training[i], 0)))
+                    print('cannot align, for session {} laser #: {} trials #: {}'.format(day,
+                          len(ld), np.size(behav, 0)))
         data = pd.concat(training)
         allData.append(data)
     return allData
