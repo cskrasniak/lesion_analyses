@@ -74,7 +74,7 @@ def DJ_fetch_DF(subjects, useDates):
                                                     'trial_feedback_type', as_dict=True))
 
             useSessions = [ses.strftime('%Y-%m-%d') in useDates
-                           for ses in allSessions.session_start_date]
+                           for ses in allSessions['session_start_date']]
             allSessions = allSessions[useSessions]
 
         allSessions['trial_response_choice'][allSessions['trial_response_choice'] == 'CW'] = 1
@@ -132,6 +132,6 @@ def align_laser2behavior(subjects):
                 else:
                     print('cannot align, for session {} laser #: {} trials #: {}'.format(day,
                           len(ld), np.size(behav, 0)))
-        data = pd.concat(training)
+        data = pd.concat(training,ignore_index=True)
         allData.append(data)
     return allData
