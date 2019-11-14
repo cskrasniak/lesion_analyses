@@ -10,6 +10,7 @@ import os
 from math import ceil
 from scipy import stats
 from matplotlib.lines import Line2D
+from matplotlib.colors import Normalize
 
 bregma = [228.5, 190]
 pixelsize = .025  #mm
@@ -38,7 +39,7 @@ for subject in bigData:
 
     f, axes = plt.subplots(13, 10, figsize=(14, 14), sharex=True, sharey=True)
     sns.despine(left=True, bottom=True)
-    
+
 
     for i in range(len(spots)):
         spot = spots.iloc[i, [0, 1]]
@@ -106,12 +107,13 @@ for subject in bigData:
             pSizes.append(50)
         else:
             pSizes.append(20)
-    fig = plt.figure(figsize=(4.6, 7))
+    plt.figure()
+    fig = plt.subplot2grid((5,5), (0,0), colspan=4, rowspan=4)
     plt.imshow(allenOutline, cmap="gray")
     allenSpotsX = (spots.iloc[:, 0] * 40) + bregma[0]
     allenSpotsY = ((spots.iloc[:, 1]) * -40) + bregma[1]
 
-    useHue = np.array([mean[useToPlot] for mean in means]) - np.mean(controlData[useToPlot])
+    useHue = np.array([mean[useToPlot] for mean in means]) 
     cmap = sns.color_palette("RdBu_r", len(np.unique(useHue)))
     red = cmap[-1]
     blue = cmap[0]
@@ -128,8 +130,11 @@ for subject in bigData:
     ax = plt.gca()
     ax.set_facecolor('w')
     plt.axis('off')
-    maxColor = round(max([mean[useToPlot] for mean in means]) - np.mean(controlData[useToPlot]), 2)
-    minColor = round(min([mean[useToPlot] for mean in means]) - np.mean(controlData[useToPlot]), 2)
+    maxColor = round(max(useHue), 2)
+    minColor = round(min(useHue), 2)
+    ax1 = plt.subplot2grid((5,5), (4,0), colspan=5, rowspan=1)
+    colorBar = np.sort(useHue[np.newaxis,:])
+    sns.heatmap(colorBar,cmap=cmap,cbar=False,ax=ax1)
     legend_el = [Line2D([0], [0], marker='o', color ='w', label='p < .0001', markerfacecolor='k', markersize = 20),
              Line2D([0], [0], marker='o', color='w', label='p < .001', markerfacecolor='k', markersize = 15),
              Line2D([0], [0], marker='o', color='w', label='p < .01', markerfacecolor='k', markersize = 8),
