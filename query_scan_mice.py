@@ -77,9 +77,9 @@ def DJ_fetch_DF(subjects, useDates):
                            for ses in allSessions['session_start_date']]
             allSessions = allSessions[useSessions]
 
-        allSessions['trial_response_choice'][allSessions['trial_response_choice'] == 'CW'] = 1
-        allSessions['trial_response_choice'][allSessions['trial_response_choice'] == 'CCW'] = -1
-        allSessions['trial_response_choice'][allSessions['trial_response_choice'] == 'No Go'] = 0
+        #allSessions['trial_response_choice'][allSessions['trial_response_choice'] == 'CW'] = 1
+        #allSessions['trial_response_choice'][allSessions['trial_response_choice'] == 'CCW'] = -1
+        #allSessions['trial_response_choice'][allSessions['trial_response_choice'] == 'No Go'] = 0
 
         allSessions['subject'] = sub
         DF_list.append(allSessions)
