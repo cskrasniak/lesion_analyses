@@ -15,8 +15,9 @@ from matplotlib.colors import Normalize
 bregma = [228.5, 190]
 pixelsize = .025  #mm
 allenOutline = np.load(r'F:\allen_dorsal_outline')
-#data = query.align_laser2behavior(['CSK-scan-004', 'CSK-scan-005'])
+data = query.align_laser2behavior(['CSK-scan-004', 'CSK-scan-005'])
 
+bigData = [data[0].append(data[1])]
 for subject in bigData:
     shuffledData = subject.copy()
     shuffledData['laserPosX'] = np.random.permutation(shuffledData.loc[:,'laserPosX'])
@@ -31,7 +32,7 @@ for subject in bigData:
     controlData = [[], [], [], [], []]
     means = [[[], [], [], [], [], []] for spot in range(len(spots))]
     spotFits = []
-    goLeft = 0
+    goLeft = 0 
     goRight = 1
     noGo = 2
     RT = 3
@@ -51,9 +52,9 @@ for subject in bigData:
             psychoSpotData[i][1].append(len(byContrast))
             psychoSpotData[i][2].append(np.mean(byContrast['trial_feedback_type']))
             if abs(contrast) == .125 or abs(contrast) == .0625:
-                spotData[i][goLeft].append(byContrast['trial_response_choice'] == -1)  # go left
-                spotData[i][goRight].append(byContrast['trial_response_choice'] == 1)  # go right
-                spotData[i][noGo].append(byContrast['trial_response_choice'] == 0)  # no go
+                spotData[i][goLeft].append(byContrast['trial_response_choice'] == 'CCW')  # go left
+                spotData[i][goRight].append(byContrast['trial_response_choice'] == 'CW')  # go right
+                spotData[i][noGo].append(byContrast['trial_response_choice'] == 'No Go')  # no go
                 spotData[i][RT].append(byContrast['trial_response_time'] - byContrast['trial_go_cue_trigger_time'])
                 byContrast[byContrast['trial_feedback_type'] == -1] = 0
                 spotData[i][correct].append(byContrast['trial_feedback_type'])  # correct
@@ -75,7 +76,7 @@ for subject in bigData:
         sns.lineplot(fitx, fity, ax=axes[abs(int(spots.iloc[i, 1]) - 4),
                      int(ceil(spots.iloc[i, 0] + 4))], palette='gray')
         plt.axis('off')
-        ax.tick_params(left=False, bottom=False)
+        plt.tick_params(left=False, bottom=False)
 
     controlData[goLeft] = spotData[10][goLeft] + spotData[55][goLeft]
     controlData[goRight] = spotData[10][goRight] + spotData[55][goRight]
@@ -97,50 +98,50 @@ for subject in bigData:
 
     pSizes = []
     useToPlot = goRight
-    plotLabels = [' Prob go left', ' Prob go right', ' Prob no go', ' Response Time', ' Correct']
+    plotLabels = ['Percent CCW', 'Percent CW', 'Percent No Go', 'Response Time', 'Percent Correct']
     for p in pVals:
-        if p[useToPlot] <= .0001:
+        # Bonferroni correction, dev by num spots
+        if p[useToPlot] <= .0001 / len(spots):
             pSizes.append(400)
-        elif p[useToPlot] <= .001:
+        elif p[useToPlot] <= .001 / len(spots):
             pSizes.append(250)
-        elif p[useToPlot] <= .01:
+        elif p[useToPlot] <= .01 / len(spots):
             pSizes.append(50)
         else:
             pSizes.append(20)
+    
     plt.figure()
-    fig = plt.subplot2grid((5,5), (0,0), colspan=4, rowspan=4)
+    fig = plt.subplot2grid((5, 5), (0, 0), colspan=4, rowspan=4)
     plt.imshow(allenOutline, cmap="gray")
-    allenSpotsX = (spots.iloc[:, 0] * 40) + bregma[0]
-    allenSpotsY = ((spots.iloc[:, 1]) * -40) + bregma[1]
+    allenSpotsX = (spots.iloc[:, 0] * 1 / pixelsize) + bregma[0]
+    allenSpotsY = ((spots.iloc[:, 1]) * -1 / pixelsize) + bregma[1]
 
     useHue = np.array([mean[useToPlot] for mean in means]) 
     cmap = sns.color_palette("RdBu_r", len(np.unique(useHue)))
-    red = cmap[-1]
-    blue = cmap[0]
+
     if useToPlot == RT:
         cmap = sns.cubehelix_palette(len(np.unique(useHue)), start=1, rot=0, dark=0, light=.95)
-        red = cmap[-1]
-        blue = cmap[0]
     elif useToPlot == correct:
-        cmap = sns.cubehelix_palette(len(np.unique(useHue)), start=1, rot=0, dark=0, light=.95,reverse=True)
-        red = cmap[-1]
-        blue = cmap[0]
+        cmap = sns.cubehelix_palette(len(np.unique(useHue)), start=1, rot=0, dark=0, light=.95, reverse=True)
+        
+    red = cmap[-1]
+    blue = cmap[0]
     ax = sns.scatterplot(x=allenSpotsX, y=allenSpotsY, size=pSizes, sizes=(20, 400),
                          hue=useHue, palette=cmap, legend=False, edgecolor='k')
+    
     ax = plt.gca()
     ax.set_facecolor('w')
     plt.axis('off')
     maxColor = round(max(useHue), 2)
     minColor = round(min(useHue), 2)
-    ax1 = plt.subplot2grid((5,5), (4,0), colspan=5, rowspan=1)
-    colorBar = np.sort(useHue[np.newaxis,:])
-    sns.heatmap(colorBar,cmap=cmap,cbar=False,ax=ax1)
+    ax1 = plt.subplot2grid((5, 5), (4, 0), colspan=4, rowspan=1)
+    colorBar = pd.DataFrame(np.sort(useHue[np.newaxis,:]), index=[plotLabels[useToPlot]], columns= [str(int(round(hue*100,0))) for hue in np.sort(useHue)])
+    sns.heatmap(colorBar, cmap=cmap, cbar=False, ax=ax1, xticklabels=11, yticklabels=False)
+    plt.text(len(useHue)/2 - 5,0,plotLabels[useToPlot])
     legend_el = [Line2D([0], [0], marker='o', color ='w', label='p < .0001', markerfacecolor='k', markersize = 20),
              Line2D([0], [0], marker='o', color='w', label='p < .001', markerfacecolor='k', markersize = 15),
              Line2D([0], [0], marker='o', color='w', label='p < .01', markerfacecolor='k', markersize = 8),
-             Line2D([0], [0], marker='o', color='w', label='p > .01', markerfacecolor='k', markersize = 5),
-             Line2D([0], [0], marker='o', color='w', label='+ ' + str(maxColor) + plotLabels[useToPlot], markerfacecolor = red, markersize = 15),
-             Line2D([0], [0], marker='o', color='w', label=str(minColor) + plotLabels[useToPlot], markerfacecolor = blue, markersize = 15)]
+             Line2D([0], [0], marker='o', color='w', label='p > .01', markerfacecolor='k', markersize = 5)]
 
     ax.legend(handles=legend_el, bbox_to_anchor=(0.5, 0.05), loc='center', frameon=False,
               facecolor='w', columnspacing=10)
