@@ -21,7 +21,13 @@ for sub = 3:length(subs)
             fileparts = split(files(file).name,"_");suffix = split(fileparts(end),".");
             exptNum = strcat("00",suffix(1));
             f1 = fullfile("F:\Subjects",subject,exptDay,exptNum);
-            cd(f1)
+            try
+                cd(f1)
+            catch
+                sprintf('Warning, no folder %s, creating folder', f1)
+                mkdir(fullfile("F:\Subjects",subject,exptDay),exptNum)
+                cd(f1)
+            end
             writeNPY(XY_list,"laserData")
             cd(fullfile(baseDir,subject,exptDay))
         end
