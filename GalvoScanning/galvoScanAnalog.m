@@ -52,14 +52,14 @@ dt = 1/s2.Rate;%seconds
 stopTime2 = 2; %downward amplitude ramp period/length of trial
 stopTime1 = stopTime2-.1; %seconds
 t1 = 0:dt:stopTime1-dt;
-t2 = stopTime1:dt:stopTime2-dt;
+t2 = stopTime1:dt:stopTime2-dt; % time for the ramp down
 ampmax = 5;% needs to be set to 1
-ampRamp = linspace(0,ampmax,length(t2));
-amp=repmat(ampmax,1,length(ampRamp))-ampRamp;
+ampRamp = linspace(0,ampmax,length(t2)); 
+amp=repmat(ampmax,1,length(ampRamp))-ampRamp; % the final amplitudes for the ramp down
 
 lo1 = ampmax*sin(2*pi*t1*40)+ampmax; % front number is amplitude, 40 is 40hz stim, last is to make it all positive
-lo2 = amp.*sin(2*pi*t2*40)+amp;
-laserOutput = [lo1,lo2];
+lo2 = amp.*sin(2*pi*t2*40)+amp; %creating the downward ramp of the sine amp
+laserOutput = [lo1,lo2]; % put together normal output and ramp
 %% Main loop
 while true
     tic
@@ -129,11 +129,11 @@ clear num
 
 function [X,Y] = getDestination(XY_list)
 
-    destListx = [[-1.5:1:1.5],[-2.5:1:2.5],[-3.5:1:3.5],[-3.5:1:3.5],[-4.5:1:4.5],[-4.5:1:4.5],[-4.5:1:4.5],[-3.5:1:3.5],2.5,-2.5]';%these are based off my surgeries
+    destListx = [[-1.5:1:1.5],[-2.5:1:2.5],[-3.5:1:3.5],[-3.5:1:3.5],[-4.5:1:4.5],[-4.5:1:4.5],[-4.5:1:4.5],[-3.5:1:3.5],2.5,-2.5,2.5,-2.5]';%these are based off my surgeries
     % the last two numbers are on the headplate as negative controls, 
     %the y mirror is backwards so need to flip it
     % subtract .5 to move it back .5cm, off OB
-    destListy = [repmat(-3,4,1);repmat(-2,6,1);repmat(-1,8,1);repmat(0,8,1);repmat(1,10,1);repmat(2,10,1);repmat(3,10,1);repmat(4,8,1);repmat(8,2,1)] -.5;
+    destListy = [repmat(-3,4,1);repmat(-2,6,1);repmat(-1,8,1);repmat(0,8,1);repmat(1,10,1);repmat(2,10,1);repmat(3,10,1);repmat(4,8,1);repmat(8,4,1)] -.5;
     destList = [destListx,destListy];
     idx=randsample([1:size(destList,1)],1,true);
     X = destList(idx,1); Y = destList(idx,2);
