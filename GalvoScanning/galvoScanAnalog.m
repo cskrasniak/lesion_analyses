@@ -109,8 +109,12 @@ XY_list = XY_list(2:end,:);
 input = inputdlg("was the laser on? yes=1, no = 0","laser on?");
 XY_list(:,3) = repmat(str2double(input{1}),size(XY_list,1),1);
 XY_list(:,2) = XY_list(:,2).*-1; %make the y values negative b/c pos/neg is switched for this mirror
+data_struct = struct;
+data_struct.XY_list = XY_list;
+data_struct.laserOn = XY_list(:,3);
+data_struct.laserProbs = ones(length(XY_list),1);
 if exist(saveName,'file') %save the file
-    save(saveName,'XY_list');
+    save(saveName,'data_struct');
     disp("Data Saved")
 else
     num(1) = 0;
@@ -119,21 +123,21 @@ else
         num(i) = str2num(filelist(i).name(end-4));
     end
 
-    save(mouseName+"_"+date+"_"+string(max(num)+1),'XY_list');
+    save(mouseName+"_"+date+"_"+string(max(num)+1),'data_struct');
     %writeNPY('XY_list',mouseName+"_"+date+"_"+string(max(num)+1)+".npy");
     disp("Data Saved")
-end
+end 
 clear num
 
 %% Helper functions
 
 function [X,Y] = getDestination(XY_list)
 
-    destListx = [[-1.5:1:1.5],[-2.5:1:2.5],[-3.5:1:3.5],[-3.5:1:3.5],[-4.5:1:4.5],[-4.5:1:4.5],[-4.5:1:4.5],[-3.5:1:3.5],2.5,-2.5,2.5,-2.5]';%these are based off my surgeries
+    destListx = [[-1.5:1:1.5],[-2.5:1:2.5],[-3.5:1:3.5],[-3.5:1:3.5],[-3.5:1:3.5],[-3.5:1:3.5],[-4.5:1:4.5],[-3.5:1:3.5],2.5,-2.5,2.5,-2.5]';%these are based off my surgeries
     % the last two numbers are on the headplate as negative controls, 
     %the y mirror is backwards so need to flip it
     % subtract .5 to move it back .5cm, off OB
-    destListy = [repmat(-3,4,1);repmat(-2,6,1);repmat(-1,8,1);repmat(0,8,1);repmat(1,10,1);repmat(2,10,1);repmat(3,10,1);repmat(4,8,1);repmat(8,4,1)] -.5;
+    destListy = [repmat(-3,4,1);repmat(-2,6,1);repmat(-1,8,1);repmat(0,8,1);repmat(1,8,1);repmat(2,8,1);repmat(3,10,1);repmat(4,8,1);repmat(7,4,1)] +.5;
     destList = [destListx,destListy];
     idx=randsample([1:size(destList,1)],1,true);
     X = destList(idx,1); Y = destList(idx,2);
