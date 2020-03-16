@@ -1,0 +1,178 @@
+%%% Script for running galvo scanning in the IBL task, ran in unison with
+%%% biasedScanningChoiceWorld in pyBpod. first execute this script, then
+%%% start the task in pybpod. When ending the session, stop this script by
+%%% pressing the big "end now" button then stop the pybpod task. Written
+%%% for use with two NI-USB-6211 DAQ boards. Written by Christopher S
+%%% Krasniak, Cold Spring Harbor Laboratory/International Brain Lab, August
+%%% 2019.
+
+% USE 200um FIBER FOR THIS EXPERIMENT TO GET ALL OF VIS CTX
+
+%% End trial button
+mousedir = uigetdir('C:\Users\IBLuser\Documents\laserPostitionData',"What's the mouse's name?");
+mouseDirSplit = strsplit(mousedir,'\');
+mouseName = mouseDirSplit{end};
+
+%% Setting up DAQ boards                     
+% s0 = daq.createSession('ni');
+% AI2 = addAnalogInputChannel(s0,'dev1','ai2', 'Voltage');
+% s0.Rate = 100000;
+% s0.IsContinuous = true;
+% s0.IsNotifyWhenDataAvailableExceedsAuto = true;
+% s0.NotifyWhenDataAvailableExceeds = 1000;
+% 
+% AI0=addAnalogInputChannel(s0,'dev1','ai0', 'Voltage');
+% AI1=addAnalogInputChannel(s0,'dev1','ai1', 'Voltage');
+
+global s2
+s2 = daq.createSession('ni');
+AO0=addAnalogOutputChannel(s2,'dev1','ao0', 'Voltage');
+AO1=addAnalogOutputChannel(s2,'dev1','ao1', 'Voltage');
+A02 = addAnalogOutputChannel(s2,'dev2','ao1', 'Voltage');
+s2.Rate = 8000;
+s2.IsContinuous = true;
+
+%% saving Parameters
+formatOut = 'yyyy-mm-dd';
+date = datestr(now,formatOut);
+dataPath = string(mousedir)+'\'+date;
+mkdir(dataPath);cd(dataPath)
+saveName = mouseName+"_"+date+"_1";
+
+%% laser stimulation specs
+xConv = 0.175;% Conversion rate from mm to volt x axis
+yConv = 0.1675;% Conversion rate from mm to volt y axis
+XY_list = [];
+dt = 1/s2.Rate;%seconds
+stopTime = 1; %queue 60s worth of output
+t = 0:dt:stopTime-dt;
+ampmax = 5;% 5 is half the max, 10, I later add five so the output is always positive or 0
+laserOutput = ampmax*sin(2*pi*t*80)+ampmax; % front number is amplitude, 80 is 80hz stim (40Hz per side), ampmax is to make it all positive
+moveCutOff = 2.75; %value at which to cut off the laser power to allow galvos to move
+laserOutput(laserOutput < moveCutOff) = 0;
+%% Laser location specs
+targetsY = [4, 4];
+targetsX = [3, -3];
+slope = gradient(laserOutput);
+laserProbs = [];
+minSlope = min(slope);
+% 1 for half the sine waves, -1 for the other half, lets me alternate laser
+% spots for two hemispheres
+laserLocIdx = [1];
+for i = 1:length(laserOutput)
+    laserLocIdx(i+1) = laserLocIdx(i);
+    if slope(i) < minSlope + .02
+        laserLocIdx(i+1) = laserLocIdx(i)*-1;
+        
+    end
+end
+laserLocIdx(end) = [];%remove extra last element
+laserOutput(end) = 0;  % set last laser to zero so it turns off between trials
+laserLocY = repmat(targetsY(1),[1,length(laserOutput)]) *yConv;
+laserLocX = targetsX(1)*laserLocIdx *xConv ;
+% newTrialListener = addlistener(s0,'DataAvailable', @newTrialCheck); %Add listener to check if there is a new trial aka if the laser should move 
+queueOutputData(s2,[laserLocY' laserLocX' laserOutput'])
+lh = addlistener(s2,'DataRequired',@queueMoreData);
+disp('Laser Ready')
+f = figure;
+startHandle = uicontrol('Style', 'PushButton', ...
+                         'String', 'Start Laser', ...
+                         'Position', [10,10,245,400],...
+                         'FontSize', 32,...
+                         'BackgroundColor', 'green',...
+                         'ForegroundColor','white',...
+                         'Callback', 's2.startBackground');
+
+stopHandle = uicontrol('Style', 'PushButton', ...
+                         'String', 'Stop Laser', ...
+                         'Position', [255,10,245,400],...
+                         'FontSize', 32,...
+                         'BackgroundColor', 'red',...
+                         'ForegroundColor','white',...
+                         'Callback', 'delete(lh)');
+
+%% Saving data 
+% XY_list = XY_list(2:end,:);
+% input = inputdlg("was the laser on? yes=1, no = 0","laser on?");
+% XY_list(:,2) = zeros(size(XY_list,1),1);
+% XY_list(:,3) = repmat(str2double(input{1}),size(XY_list,1),1);
+% data_struct = struct;
+% data_struct.XY_list = 'visCtxBilateral';
+% data_struct.laserOn = XY_list(:,1);
+% data_struct.laserProbs = laserProbs;
+% if exist(saveName,'file') %save the file
+%     save(saveName,'data_struct');
+%     disp("Data Saved")
+% else
+%     num(1) = 0;
+%     filelist=dir('*.mat');%if one experiment has already been done on this mouse today, save it under the next number
+%     for i= 1:length(filelist)
+%         num(i) = str2num(filelist(i).name(end-4));
+%     end
+% 
+%     save(mouseName+"_"+date+"_"+string(max(num)+1),'data_struct');
+%     %writeNPY('XY_list',mouseName+"_"+date+"_"+string(max(num)+1)+".npy");
+%     disp("Data Saved")
+% end
+% clear num
+
+%% Helper functions
+function endSession(src)
+    src.stop
+    disp('experiment stopped by user');
+    
+    %% reset laser position to 0
+
+        disp("Moving to 0,0")
+    queueOutputData(s2,zeros(100,3))
+    src.startForeground()
+    src.release()
+end
+function queueMoreData(src,event)
+xConv = 0.175;% Conversion rate from mm to volt x axis
+yConv = 0.1675;% Conversion rate from mm to volt y axis
+XY_list = [];
+dt = 1/src.Rate;%seconds
+stopTime = 1; %queue 60s worth of output
+t = 0:dt:stopTime-dt;
+ampmax = 5;% 5 is half the max, 10, I later add five so the output is always positive or 0
+laserOutput = ampmax*sin(2*pi*t*80)+ampmax; % front number is amplitude, 80 is 80hz stim (40Hz per side), ampmax is to make it all positive
+moveCutOff = 2.75; %value at which to cut off the laser power to allow galvos to move
+laserOutput(laserOutput < moveCutOff) = 0;
+%% Laser location specs
+targetsY = [4, 4];
+targetsX = [3, -3];
+slope = gradient(laserOutput);
+laserProbs = [];
+minSlope = min(slope);
+% 1 for half the sine waves, -1 for the other half, lets me alternate laser
+% spots for two hemispheres
+laserLocIdx = [1];
+for i = 1:length(laserOutput)
+    laserLocIdx(i+1) = laserLocIdx(i);
+    if slope(i) < minSlope + .02
+        laserLocIdx(i+1) = laserLocIdx(i)*-1;
+        
+    end
+end
+laserLocIdx(end) = [];%remove extra last element
+laserOutput(end) = 0;  % set last laser to zero so it turns off between trials
+laserLocY = repmat(targetsY(1),[1,length(laserOutput)]) *yConv;
+laserLocX = targetsX(1)*laserLocIdx *xConv ;
+queueOutputData(src,[laserLocY' laserLocX' laserOutput'])
+end
+
+function [X,Y] = getDestination(XY_list)
+
+    destListx = [[-1.5:1:1.5],[-2.5:1:2.5],[-3.5:1:3.5],[-3.5:1:3.5],[-4.5:1:4.5],[-4.5:1:4.5],[-4.5:1:4.5],[-3.5:1:3.5],2.5,-2.5]';%these are based off my surgeries
+    % the last two numbers are on the headplate as negative controls, 
+    %the y mirror is backwards so need to flip it
+    % subtract .5 to move it back .5cm, off OB
+    destListy = [repmat(-3,4,1);repmat(-2,6,1);repmat(-1,8,1);repmat(0,8,1);repmat(1,10,1);repmat(2,10,1);repmat(3,10,1);repmat(4,8,1);repmat(8,2,1)] -.5;
+    destList = [destListx,destListy];
+    idx=randsample([1:size(destList,1)],1,true);
+    X = destList(idx,1); Y = destList(idx,2);
+    if X == XY_list(end,1) && Y == XY_list(end,2)
+        [X,Y] = getDestination(XY_list);
+    end
+end

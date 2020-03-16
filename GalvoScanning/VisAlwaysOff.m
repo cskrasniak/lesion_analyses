@@ -6,7 +6,7 @@
 %%% Krasniak, Cold Spring Harbor Laboratory/International Brain Lab, August
 %%% 2019.
 
-
+% USE 200um FIBER FOR THIS EXPERIMENT TO GET ALL OF VIS CTX
 
 %% End trial button
 mousedir = uigetdir('C:\Users\IBLuser\Documents\laserPostitionData',"What's the mouse's name?");
@@ -47,49 +47,77 @@ saveName = mouseName+"_"+date+"_1";
 %% laser stimulation specs
 xConv = 0.175;% Conversion rate from mm to volt x axis
 yConv = 0.1675;% Conversion rate from mm to volt y axis
-XY_list = [0,0];
+XY_list = [];
 dt = 1/s2.Rate;%seconds
-stopTime2 = 2; %downward amplitude ramp period/length of trial
-stopTime1 = stopTime2-.1; %seconds
-t1 = 0:dt:stopTime1-dt;
-t2 = stopTime1:dt:stopTime2-dt; % time for the ramp down
-ampmax = 5;% needs to be set to 1
-ampRamp = linspace(0,ampmax,length(t2)); 
-amp=repmat(ampmax,1,length(ampRamp))-ampRamp; % the final amplitudes for the ramp down
-
-lo1 = ampmax*sin(2*pi*t1*40)+ampmax; % front number is amplitude, 40 is 40hz stim, last is to make it all positive
-lo2 = amp.*sin(2*pi*t2*40)+amp; %creating the downward ramp of the sine amp
-laserOutput = [lo1,lo2]; % put together normal output and ramp
+stopTime = 1.5*60*60; %turn laser on for 1.5 hours
+t = 0:dt:stopTime-dt;
+ampmax = 5;% 5 is half the max, 10, I later add five so the output is always positive or 0
+laserOutput = ampmax*sin(2*pi*t*80)+ampmax; % front number is amplitude, 80 is 80hz stim (40Hz per side), ampmax is to make it all positive
+moveCutOff = 2.75; %value at which to cut off the laser power to allow galvos to move
+laserOutput(laserOutput < moveCutOff) = 0;
+%% Laser location specs
+targetsY = [4, 4];
+targetsX = [3, -3];
+slope = gradient(laserOutput);
+laserProbs = [];
+minSlope = min(slope);
+% 1 for half the sine waves, -1 for the other half, lets me alternate laser
+% spots for two hemispheres
+laserLocIdx = [1];
+for i = 1:length(laserOutput)
+    laserLocIdx(i+1) = laserLocIdx(i);
+    if slope(i) < minSlope + .02
+        laserLocIdx(i+1) = laserLocIdx(i)*-1;
+        
+    end
+end
+laserLocIdx(end) = [];%remove extra last element
+laserOutput(end) = 0;  % set last laser to zero so it turns off between trials
+laserLocY = repmat(targetsY(1),[1,length(laserOutput)]) *yConv;
+laserLocX = targetsX(1)*laserLocIdx *xConv ;
+newTrialListener = addlistener(s0,'DataAvailable', @newTrialCheck); %Add listener to check if there is a new trial aka if the laser should move 
+queueOutputData(s2,[laserLocY' laserLocX' laserOutput'])
+disp('Laser Ready')
+s0.startBackground
+s0.wait(61)
 %% Main loop
 while true
     tic
 
   if ~ishandle(ButtonHandle)
       release(s0)
+      release(s2)
     disp('experiment stopped by user');
     break;
   end
 
-[X_dest,Y_dest] = getDestination(XY_list);
-Ampx = X_dest*xConv;
-outputx = Ampx';
-
-
-Ampy = Y_dest * yConv;
-outputy = Ampy';
  %%%%%%%%%%%%%%%%%%% NEED Y THEN X FOR OUTPUT
-queueOutputData(s2,[repmat(outputy,length(laserOutput),1) repmat(outputx,length(laserOutput),1) laserOutput'])
-
-newTrialListener = addlistener(s0,'DataAvailable', @newTrialCheck); %Add listener to check if there is a new trial aka if the laser should move 
-
-s0.startBackground
+ 
+ % increase laser on probability relative to number of trials
+ %   sesh_len = length(XY_list);
+ %   laser_prob = .3+(sesh_len/950);
+ %   if laser_prob >= .9
+        laser_prob = 1;
+%  %   end
+% if rand(1) <= laser_prob
+    queueOutputData(s2,[laserLocY' laserLocX' laserOutput'])
+    laserOn = 1;
+    
+% else
+%     queueOutputData(s2,[laserLocY' laserLocX' zeros(length(laserLocY),1)])
+%     laserOn = 0;
+% end
+s2.startForeground
 toc
+
+
 try
-    fprintf('Moving to %.2f,%.2f \n ',X_dest,Y_dest*-1)
-    s0.wait(61)%hold all operations for 61 seconds, (1s more than max trial length), if new trial not triggered by then, this trial is repeated
-    XY_list = [XY_list; [X_dest,Y_dest]]; % the Y is backwards so need to negate it
+    %fprintf('Moving to %.2f,%.2f \n ',X_dest,Y_dest*-1)
+    %hold all operations for 61 seconds, (1s more than max trial length), if new trial not triggered by then, this trial is repeated
+    XY_list = vertcat(XY_list, laserOn); 
+    laserProbs = vertcat(laserProbs,laser_prob);
 catch
-    s2.startForeground 
+    %s2.startForeground 
     s0.stop()
     delete(newTrialListener); %delete(mirrorPosListener);
     disp("something went wrong, no trigger detected")
@@ -107,12 +135,12 @@ s0.release()
 %% Saving data 
 XY_list = XY_list(2:end,:);
 input = inputdlg("was the laser on? yes=1, no = 0","laser on?");
+XY_list(:,2) = zeros(size(XY_list,1),1);
 XY_list(:,3) = repmat(str2double(input{1}),size(XY_list,1),1);
-XY_list(:,2) = XY_list(:,2).*-1; %make the y values negative b/c pos/neg is switched for this mirror
 data_struct = struct;
-data_struct.XY_list = XY_list;
-data_struct.laserOn = XY_list(:,3);
-data_struct.laserProbs = ones(length(XY_list),1);
+data_struct.XY_list = 'visCtxBilateral';
+data_struct.laserOn = XY_list(:,1);
+data_struct.laserProbs = laserProbs;
 if exist(saveName,'file') %save the file
     save(saveName,'data_struct');
     disp("Data Saved")
@@ -126,18 +154,18 @@ else
     save(mouseName+"_"+date+"_"+string(max(num)+1),'data_struct');
     %writeNPY('XY_list',mouseName+"_"+date+"_"+string(max(num)+1)+".npy");
     disp("Data Saved")
-end 
+end
 clear num
 
 %% Helper functions
 
 function [X,Y] = getDestination(XY_list)
 
-    destListx = [[-1.5:1:1.5],[-2.5:1:2.5],[-3.5:1:3.5],[-3.5:1:3.5],[-3.5:1:3.5],[-3.5:1:3.5],[-4.5:1:4.5],[-3.5:1:3.5],2.5,-2.5,2.5,-2.5]';%these are based off my surgeries
+    destListx = [[-1.5:1:1.5],[-2.5:1:2.5],[-3.5:1:3.5],[-3.5:1:3.5],[-4.5:1:4.5],[-4.5:1:4.5],[-4.5:1:4.5],[-3.5:1:3.5],2.5,-2.5]';%these are based off my surgeries
     % the last two numbers are on the headplate as negative controls, 
     %the y mirror is backwards so need to flip it
     % subtract .5 to move it back .5cm, off OB
-    destListy = [repmat(-3,4,1);repmat(-2,6,1);repmat(-1,8,1);repmat(0,8,1);repmat(1,8,1);repmat(2,8,1);repmat(3,10,1);repmat(4,8,1);repmat(7,4,1)] +.5;
+    destListy = [repmat(-3,4,1);repmat(-2,6,1);repmat(-1,8,1);repmat(0,8,1);repmat(1,10,1);repmat(2,10,1);repmat(3,10,1);repmat(4,8,1);repmat(8,2,1)] -.5;
     destList = [destListx,destListy];
     idx=randsample([1:size(destList,1)],1,true);
     X = destList(idx,1); Y = destList(idx,2);
