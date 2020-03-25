@@ -12,7 +12,7 @@ import numpy as np
 import scipy.optimize
 from scipy.special import erf, erfc
 
-def mle_fit_psycho(data, P_model='weibull', parstart=None, parmin=None, parmax=None, nfits=5):
+def mle_fit_psycho(data, P_model='weibull', parstart=None, parmin=None, parmax=None, nfits=50):
     """
     Maximumum likelihood fit of psychometric function.
 
@@ -182,7 +182,7 @@ def psych_cumNorm(params, x):
 bregma = [228.5, 190]
 pixelsize = .025  # mm
 allenOutline = np.load(r'F:\allen_dorsal_outline')
-data = query.align_laser2behavior(['CSK-scan-013','CSK-scan-014','CSK-scan-015','CSK-scan-016','CSK-scan-019'])
+data = query.align_laser2behavior(['CSK-scan-014','CSK-scan-015','CSK-scan-016','CSK-scan-019'])
 
 bigData = [pd.concat(data)]
 data.append(bigData[0])
@@ -194,7 +194,13 @@ spotLapseLow = [[[] for subject in range(len(data))] for spots in range(len(spot
 animalFits = []
 subIdx = 0
 
-plotContrasts = [1, .25,.125, .0625, 0]  # 1, .25, .125, list of contrasts to use in spot plot
+plotContrasts = [1, .25,  .125, .0625, 0]  # 1, .25, .125, list of contrasts to use in spot plot
+
+visLeftSpots = np.array([[-2.5,-1.5],[-3.5,-1.5],[-2.5,-2.5],[-3.5,-2.5]])
+visRightSpots = np.array([[2.5,-1.5],[3.5,-1.5],[2.5,-2.5],[3.5,-2.5]])
+
+moLeftSpots = np.array([[-1.5,.5],[-1.5,1.5],[-1.5,2.5],[-2.5,1.5]])
+moRightSpots = np.array([[1.5,.5],[1.5,1.5],[1.5,2.5],[2.5,1.5]])
 
 for subject in data:
     shuffledData = subject.copy()
@@ -204,6 +210,7 @@ for subject in data:
     spots = subject.groupby(['laserPosX', 'laserPosY']).size().reset_index().rename(
         columns={0: 'count'})
     contrastSet = np.unique(subject['signed_contrast'])
+    subject['CW'] = subject['trial_response_choice']=='CCW'
     psychoSpotData = [[contrastSet, [], []] for spot in range(len(spots))]
     spotData = [[[], [], [], [], []] for spot in range(len(spots))]
     pVals = [[[], [], [], [], [], []] for spot in range(len(spots))]
@@ -227,7 +234,8 @@ for subject in data:
         for contrast in contrastSet:
             byContrast = tempSpot[tempSpot['signed_contrast'] == contrast]
             psychoSpotData[i][1].append(len(byContrast))
-            psychoSpotData[i][2].append(np.mean(byContrast['trial_feedback_type']))
+            # psychoSpotData[i][2].append(np.mean(byContrast['trial_feedback_type']))
+            psychoSpotData[i][2].append(np.mean(byContrast['CW']))
             if  abs(contrast) in plotContrasts:
                 spotData[i][goLeft].append(byContrast['trial_response_choice'] == 'CCW')  # go left
                 spotData[i][goRight].append(byContrast['trial_response_choice'] == 'CW')  # goright
@@ -243,46 +251,15 @@ for subject in data:
         spotData[i][RT] = [item for sublist in spotData[i][RT] for item in sublist]
         spotData[i][correct] = [item for sublist in spotData[i][correct] for item in sublist]
 
-        startChoices1 = np.linspace(.005,.5,5000)
-        startChoices2 = np.linspace(0,10,5000)
-        startChoices3 = np.linspace(0,.45,5000)
-        print('Fitting psychometrics, {} percent Done'.format(round(i/len(spots)*100)))
-        fitParams = []
-        fitLikes = []
-        for repeat in range(1):
-            startPars = [np.random.choice(startChoices1),np.random.choice(startChoices2),np.random.choice(startChoices3),np.random.choice(startChoices3)]
-            params, L = mle_fit_psycho(psychoSpotData[i],
-                                                P_model='psych_cumNorm',
-                                                parstart=np.array(startPars),
-                                                parmin=np.array([-.5, 0., 0., 0.]),
-                                                parmax=np.array([.5, 100., .6, .6]))
-            fitParams.append(params)
-            fitLikes.append(L)
-            # find the best params (with the lowest neg likelihood)
-        params = fitParams[np.where(min(fitLikes))[0][0]]
-        spotBias[i][subIdx] = params[0]
-        spotSlope[i][subIdx] = params[1]
-        spotLapseLow[i][subIdx] = params[2]
-        spotLapseHigh[i][subIdx] = params[3]
 
-        spotFits.append(params)
-        fitx = np.linspace(-100, 100, 100)
-        fity = psychofit.erf_psycho_2gammas(params, fitx)
-
-        # sns.lineplot(fitx, fity, ax=axes[abs(int(spots.iloc[i, 1]) - 4),
-        #              int(ceil(spots.iloc[i, 0] + 4))], palette='gray')
-        # plt.axis('off')
-        # plt.tick_params(left=False, bottom=False)
-    animalFits.append(spotFits)
     controlData[goLeft] = spotData[controlSpots[0]][goLeft] + spotData[controlSpots[1]][goLeft]
     controlData[goRight] = spotData[controlSpots[0]][goRight] + spotData[controlSpots[1]][goRight]
     controlData[noGo] = spotData[controlSpots[0]][noGo] + spotData[controlSpots[1]][noGo]
     controlData[RT] = spotData[controlSpots[0]][RT] + spotData[controlSpots[1]][RT]
     controlData[correct] = spotData[controlSpots[0]][correct] + spotData[controlSpots[1]][correct]
 
+    ## Getting Pvals for each spot, and sorting out spots into visLeft and Right
     numTrials = 0
-    visLeftSpots = pd.DataFrame(columns=['laserPosX','laserPosY','count'])
-    visRightSpots = pd.DataFrame(columns=['laserPosX','laserPosY','count'])
     for i in range(len(spots)):
         t, pVals[i][goLeft] = stats.ttest_ind(spotData[i][goLeft], controlData[goLeft])
         t, pVals[i][goRight] = stats.ttest_ind(spotData[i][goRight], controlData[goRight])
@@ -295,12 +272,142 @@ for subject in data:
         means[i][RT] = np.nanmedian(spotData[i][RT])
         means[i][correct] = np.nanmean(spotData[i][correct])
         numTrials+=len(spotData[i][goLeft])
-        if pVals[i][goRight] <.001/len(spots) and spots.iloc[i]['laserPosX'] > 0 and spots.iloc[i]['laserPosY'] < 0:
-            visRightSpots = pd.concat([visRightSpots,spots[i:i+1]],ignore_index=True)
-        if pVals[i][goRight] <.001/len(spots) and spots.iloc[i]['laserPosX'] < 0 and spots.iloc[i]['laserPosY'] < 0:
-            visLeftSpots = pd.concat([visLeftSpots,spots[i:i+1]],ignore_index=True)
+
+    ## making psychometrics and other plots for vis inactivations vs control spots
+    visLeftPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+    visRightPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+
+    moRightPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+    moLeftPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+
+    controlSpotPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+    for i in range(len(spots)):
+        spotX = spots.iloc[i, [0]][0]
+        spotY = spots.iloc[i, [1]][0]
+        for leftSpots in range(len(visLeftSpots)):
+            if spotX == visLeftSpots[leftSpots][0] and spotY == visLeftSpots[leftSpots][1]:
+                visLeftPsycho[0] = psychoSpotData[i][0]
+                visLeftPsycho[1] = [i+j for i,j in zip(psychoSpotData[i][1],visLeftPsycho[1])]
+                visLeftPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[i][2],visLeftPsycho[2])]
+        for rightSpots in range(len(visRightSpots)):
+            if spotX == visRightSpots[rightSpots][0] and spotY == visRightSpots[rightSpots][1]:
+                visRightPsycho[0] = psychoSpotData[i][0]
+                visRightPsycho[1] = [i+j for i,j in zip(psychoSpotData[i][1],visRightPsycho[1])]
+                visRightPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[i][2],visRightPsycho[2])]
+
+        for leftSpots in range(len(moLeftSpots)):
+            if spotX == moLeftSpots[leftSpots][0] and spotY == moLeftSpots[leftSpots][1]:
+                moLeftPsycho[0] = psychoSpotData[i][0]
+                moLeftPsycho[1] = [i+j for i,j in zip(psychoSpotData[i][1],moLeftPsycho[1])]
+                moLeftPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[i][2],moLeftPsycho[2])]
+        for rightSpots in range(len(moRightSpots)):
+            if spotX == moRightSpots[rightSpots][0] and spotY == moRightSpots[rightSpots][1]:
+                moRightPsycho[0] = psychoSpotData[i][0]
+                moRightPsycho[1] = [i+j for i,j in zip(psychoSpotData[i][1],moRightPsycho[1])]
+                moRightPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[i][2],moRightPsycho[2])]
+
+        for ii in controlSpots:
+            if spotX == spots.iloc[ii][0] and spotY == spots.iloc[ii][1]:
+                controlSpotPsycho[0] = psychoSpotData[ii][0]
+                controlSpotPsycho[1] = [i+j for i,j in zip(psychoSpotData[ii][1],controlSpotPsycho[1])]
+                controlSpotPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[ii][2],controlSpotPsycho[2])] 
+                       
+        
+
+
+        ## plotting psychometrics for different cortical groups
+    lines = []
+    print('Fitting psychometrics, {}/{} Done'.format(subIdx,len(data)))
+    fig = plt.figure()
+    dotColors = ['.b','.r','.g']
+    lineColors = ['-b','-r','-g']
+    plotCount = 0
+    for psychoPlot in [visLeftPsycho, visRightPsycho, controlSpotPsycho]:
+        fitParams = []
+        fitLikes = []
+        for repeat in range(10):
+            params, L = psychofit.mle_fit_psycho(psychoPlot,
+                                        P_model='erf_psycho_2gammas',
+                                        parstart=np.array([0,20,.05,.05]),
+                                        parmin=np.array([-5, 0., 0., 0.]),
+                                        parmax=np.array([5, 100., 1, 1]),
+                                        nfits=50)
+            fitParams.append(params)
+            fitLikes.append(L)
+        # find the best params (with the lowest neg likelihood)
+        params = fitParams[np.where(min(fitLikes))[0][0]]
+        spotBias[i][subIdx] = params[0]
+        spotSlope[i][subIdx] = params[1]
+        spotLapseLow[i][subIdx] = params[2]
+        spotLapseHigh[i][subIdx] = params[3]
+
+        spotFits.append(params)
+        #plot the psychometrics
+        fitx = np.linspace(-1, 1, 100)
+        fity = psychofit.erf_psycho_2gammas(params, fitx)
+
+        line = plt.plot(fitx, fity, lineColors[plotCount])
+        lines.append(line)
+        plt.plot(psychoPlot[0], np.array(psychoPlot[2]), dotColors[plotCount])
+        plotCount+=1
+    ## Formatting the psychometric figure    
+    LvisLine = mpl.lines.Line2D([],[],color='blue',marker='.',label='L Vis Off')
+    RvisLine = mpl.lines.Line2D([],[],color='red',marker='.',label='R Vis Off')
+    cLine = mpl.lines.Line2D([],[],color='green',marker='.',label='Control Spots')
+    plt.legend(handles=[LvisLine,RvisLine,cLine])
+    if len(np.unique(subject['subject'])) == 1:
+        fig.suptitle(np.unique(subject['subject'])[0])
+    else:
+        fig.suptitle('{} animals'.format(len(np.unique(subject['subject']))))
+
+
+    lines = []
+    print('Fitting psychometrics, {}/{} Done'.format(subIdx,len(data)))
+    fig = plt.figure()
+    dotColors = ['.b','.r','.g']
+    lineColors = ['-b','-r','-g']
+    plotCount = 0
+    for psychoPlot in [moLeftPsycho, moRightPsycho, controlSpotPsycho]:
+        fitParams = []
+        fitLikes = []
+        for repeat in range(10):
+            params, L = psychofit.mle_fit_psycho(psychoPlot,
+                                        P_model='erf_psycho_2gammas',
+                                        parstart=np.array([0,20,.05,.05]),
+                                        parmin=np.array([-5, 0., 0., 0.]),
+                                        parmax=np.array([5, 100., 1, 1]),
+                                        nfits=50)
+            fitParams.append(params)
+            fitLikes.append(L)
+        # find the best params (with the lowest neg likelihood)
+        params = fitParams[np.where(min(fitLikes))[0][0]]
+        spotBias[i][subIdx] = params[0]
+        spotSlope[i][subIdx] = params[1]
+        spotLapseLow[i][subIdx] = params[2]
+        spotLapseHigh[i][subIdx] = params[3]
+
+        spotFits.append(params)
+        #plot the psychometrics
+        fitx = np.linspace(-1, 1, 100)
+        fity = psychofit.erf_psycho_2gammas(params, fitx)
+
+        line = plt.plot(fitx, fity, lineColors[plotCount])
+        lines.append(line)
+        plt.plot(psychoPlot[0], np.array(psychoPlot[2]), dotColors[plotCount])
+        plotCount+=1
+    ## Formatting the psychometric figure    
+    LvisLine = mpl.lines.Line2D([],[],color='blue',marker='.',label='L Mo Off')
+    RvisLine = mpl.lines.Line2D([],[],color='red',marker='.',label='R Mo Off')
+    cLine = mpl.lines.Line2D([],[],color='green',marker='.',label='Control Spots')
+    plt.legend(handles=[LvisLine,RvisLine,cLine])
+    if len(np.unique(subject['subject'])) == 1:
+        fig.suptitle(np.unique(subject['subject'])[0])
+    else:
+        fig.suptitle('{} animals'.format(len(np.unique(subject['subject']))))
+
+
     pSizes = []
-    useToPlot = RT
+    useToPlot = goRight
     plotLabels = ['Percent CCW', 'Percent CW', 'Percent No Go', 'Response Time', 'Percent Correct']
     for p in pVals:
         # Bonferroni correction, dev by num spots
@@ -380,21 +487,82 @@ for subject in data:
               facecolor='w', columnspacing=10)
     subIdx+=1
 
-# f, axes = plt.subplots(13, 10, figsize=(14, 14), sharex=True, sharey=True)
-# # setting bar position on axes
-# barWidth = .2
-# pos1 = np.arange(4)
-# pos2 = [x + barWidth for x in pos1]
-# pos3 = [x + barWidth for x in pos2]
-# pos4 = [x + barWidth for x in pos3]
 
-# for i in range(len(spots)):
-#     sns.barplot(pos1, spotBias[i][:5], ax=axes[abs(int(spots.iloc[i, 1]) - 4),
-#                 int(ceil(spots.iloc[i, 0] + 4))])
-#     sns.barplot(pos2, spotSlope[i][:5], ax=axes[abs(int(spots.iloc[i, 1]) - 4),
-#             int(ceil(spots.iloc[i, 0] + 4))])                   
-#     sns.barplot(pos3, spotLapseLow[i][:4], ax=axes[abs(int(spots.iloc[i, 1]) - 4),
-#             int(ceil(spots.iloc[i, 0] + 4))]) 
-#     sns.barplot(pos4, spotLapseHigh[i][:5], ax=axes[abs(int(spots.iloc[i, 1]) - 4),
-#             int(ceil(spots.iloc[i, 0] + 4))])
 
+
+def plot_psychos_from_spots(spotlists, psychoSpotData, spots, labels)
+    """
+        Function to plot three psychometrics on a single plot, with the dots that they were 
+        generated with. usually I'll use this with a group of left spots, a group of right spots
+        and a group of control spots.
+
+        Inputs:
+        spotlists: a list of length 3 that has the spots 
+
+    """
+    Psycho1 = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+    Psycho2 = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+    controlSpotPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+
+    for i in range(len(spots)):
+        spotX = spots.iloc[i, [0]][0]
+        spotY = spots.iloc[i, [1]][0]
+        for leftSpots in range(len(visLeftSpots)):
+            if spotX == visLeftSpots[leftSpots][0] and spotY == visLeftSpots[leftSpots][1]:
+                Psycho1[0] = psychoSpotData[i][0]
+                Psycho1[1] = [i+j for i,j in zip(psychoSpotData[i][1],Psycho1[1])]
+                Psycho1[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[i][2],Psycho1[2])]
+        for rightSpots in range(len(visRightSpots)):
+            if spotX == visRightSpots[rightSpots][0] and spotY == visRightSpots[rightSpots][1]:
+                Psycho2[0] = psychoSpotData[i][0]
+                Psycho2[1] = [i+j for i,j in zip(psychoSpotData[i][1],Psycho2[1])]
+                Psycho2[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[i][2],Psycho2[2])]
+        for ii in controlSpots:
+            if spotX == spots.iloc[ii][0] and spotY == spots.iloc[ii][1]:
+                controlSpotPsycho[0] = psychoSpotData[ii][0]
+                controlSpotPsycho[1] = [i+j for i,j in zip(psychoSpotData[ii][1],controlSpotPsycho[1])]
+                controlSpotPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[ii][2],controlSpotPsycho[2])] 
+                       
+        
+
+
+        ## plotting psychometrics for different cortical groups
+    lines = []
+    print('Fitting psychometrics, {}/{} Done'.format(subIdx,len(data)))
+    fig = plt.figure()
+    dotColors = ['.b','.r','.g']
+    lineColors = ['-b','-r','-g']
+    plotCount = 0
+    for psychoPlot in [Psycho1, Psycho2, controlSpotPsycho]:
+        fitParams = []
+        fitLikes = []
+        for repeat in range(10):
+            params, L = psychofit.mle_fit_psycho(psychoPlot,
+                                        P_model='erf_psycho_2gammas',
+                                        parstart=np.array([0,20,.05,.05]),
+                                        parmin=np.array([-5, 0., 0., 0.]),
+                                        parmax=np.array([5, 100., 1, 1]),
+                                        nfits=50)
+            fitParams.append(params)
+            fitLikes.append(L)
+        # find the best params (with the lowest neg likelihood)
+        params = fitParams[np.where(min(fitLikes))[0][0]]
+        spotBias[i][subIdx] = params[0]
+        spotSlope[i][subIdx] = params[1]
+        spotLapseLow[i][subIdx] = params[2]
+        spotLapseHigh[i][subIdx] = params[3]
+
+        spotFits.append(params)
+        #plot the psychometrics
+        fitx = np.linspace(-1, 1, 100)
+        fity = psychofit.erf_psycho_2gammas(params, fitx)
+
+        line = plt.plot(fitx, fity, lineColors[plotCount])
+        lines.append(line)
+        plt.plot(psychoPlot[0], np.array(psychoPlot[2]), dotColors[plotCount])
+        plotCount+=1
+    ## Formatting the psychometric figure    
+    LvisLine = mpl.lines.Line2D([],[],color='blue',marker='.',label=labels[0])
+    RvisLine = mpl.lines.Line2D([],[],color='red',marker='.',label=labels[1])
+    cLine = mpl.lines.Line2D([],[],color='green',marker='.',label=labels[2])
+    plt.legend(handles=[LvisLine,RvisLine,cLine])
