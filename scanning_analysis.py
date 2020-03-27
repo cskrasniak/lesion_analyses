@@ -490,7 +490,7 @@ for subject in data:
 
 
 
-def plot_psychos_from_spots(spotlists, psychoSpotData, spots, labels)
+def plot_psychos_from_spots(spotlists, psychoSpotData, spots, labels):
     """
         Function to plot three psychometrics on a single plot, with the dots that they were 
         generated with. usually I'll use this with a group of left spots, a group of right spots
