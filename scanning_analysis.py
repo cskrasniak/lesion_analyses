@@ -11,6 +11,7 @@ import functools
 import numpy as np
 import scipy.optimize
 from scipy.special import erf, erfc
+import platform
 
 def mle_fit_psycho(data, P_model='weibull', parstart=None, parmin=None, parmax=None, nfits=50):
     """
@@ -181,7 +182,10 @@ def psych_cumNorm(params, x):
 
 bregma = [228.5, 190]
 pixelsize = .025  # mm
-allenOutline = np.load(r'F:\allen_dorsal_outline')
+if platform.system() == 'Darwin':
+    allenOutline = np.load('/Users/ckrasnia/Desktop/Zador_Lab/scanData/allen_dorsal_outline')
+else:
+    allenOutline = np.load(r'F:\allen_dorsal_outline')
 data = query.align_laser2behavior(['CSK-scan-014','CSK-scan-015','CSK-scan-016','CSK-scan-019'])
 
 bigData = [pd.concat(data)]
@@ -194,7 +198,7 @@ spotLapseLow = [[[] for subject in range(len(data))] for spots in range(len(spot
 animalFits = []
 subIdx = 0
 
-plotContrasts = [1, .25,  .125, .0625, 0]  # 1, .25, .125, list of contrasts to use in spot plot
+plotContrasts = [.0625, 0]  # 1, .25, .125, list of contrasts to use in spot plot
 
 visLeftSpots = np.array([[-2.5,-1.5],[-3.5,-1.5],[-2.5,-2.5],[-3.5,-2.5]])
 visRightSpots = np.array([[2.5,-1.5],[3.5,-1.5],[2.5,-2.5],[3.5,-2.5]])
@@ -210,8 +214,8 @@ for subject in data:
     spots = subject.groupby(['laserPosX', 'laserPosY']).size().reset_index().rename(
         columns={0: 'count'})
     contrastSet = np.unique(subject['signed_contrast'])
-    subject['CW'] = subject['trial_response_choice']=='CCW'
-    psychoSpotData = [[contrastSet, [], []] for spot in range(len(spots))]
+    subject['CW'] = subject['trial_response_choice']=='CW'
+    psychoSpotData = [[contrastSet, [], [], []] for spot in range(len(spots))]
     spotData = [[[], [], [], [], []] for spot in range(len(spots))]
     pVals = [[[], [], [], [], [], []] for spot in range(len(spots))]
     controlData = [[], [], [], [], []]
@@ -235,7 +239,9 @@ for subject in data:
             byContrast = tempSpot[tempSpot['signed_contrast'] == contrast]
             psychoSpotData[i][1].append(len(byContrast))
             # psychoSpotData[i][2].append(np.mean(byContrast['trial_feedback_type']))
-            psychoSpotData[i][2].append(np.mean(byContrast['CW']))
+            psychoSpotData[i][2].append(np.array(byContrast['CW']))
+            psychoSpotData[i][3].append(np.array(byContrast['trial_response_time'] - byContrast[
+                    'trial_go_cue_trigger_time']))
             if  abs(contrast) in plotContrasts:
                 spotData[i][goLeft].append(byContrast['trial_response_choice'] == 'CCW')  # go left
                 spotData[i][goRight].append(byContrast['trial_response_choice'] == 'CW')  # goright
@@ -276,41 +282,62 @@ for subject in data:
     ## making psychometrics and other plots for vis inactivations vs control spots
     visLeftPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
     visRightPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+    visLeftChrono = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+    visRightChrono = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
 
     moRightPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
     moLeftPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+    moLeftChrono = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+    moRightChrono = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
 
     controlSpotPsycho = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+    controlSpotChrono = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.nan for i in range(len(psychoSpotData[0][1]))]]
+
     for i in range(len(spots)):
         spotX = spots.iloc[i, [0]][0]
         spotY = spots.iloc[i, [1]][0]
         for leftSpots in range(len(visLeftSpots)):
             if spotX == visLeftSpots[leftSpots][0] and spotY == visLeftSpots[leftSpots][1]:
                 visLeftPsycho[0] = psychoSpotData[i][0]
-                visLeftPsycho[1] = [i+j for i,j in zip(psychoSpotData[i][1],visLeftPsycho[1])]
-                visLeftPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[i][2],visLeftPsycho[2])]
+                visLeftPsycho[1] = [len(temp)+j for temp,j in zip(psychoSpotData[i][2],visLeftPsycho[1])]
+                visLeftPsycho[2] = [np.nanmean([np.nanmean(temp),j]) for temp,j in zip(psychoSpotData[i][2],visLeftPsycho[2])]
+                visLeftChrono[0] = visLeftPsycho[0]
+                visLeftChrono[1] = visLeftPsycho[1]
+                visLeftChrono[2] = [np.nanmedian([np.nanmedian(temp),j]) for temp,j in zip(psychoSpotData[i][3],visLeftChrono[2])]
         for rightSpots in range(len(visRightSpots)):
             if spotX == visRightSpots[rightSpots][0] and spotY == visRightSpots[rightSpots][1]:
                 visRightPsycho[0] = psychoSpotData[i][0]
-                visRightPsycho[1] = [i+j for i,j in zip(psychoSpotData[i][1],visRightPsycho[1])]
-                visRightPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[i][2],visRightPsycho[2])]
+                visRightPsycho[1] = [len(temp)+j for temp,j in zip(psychoSpotData[i][2],visRightPsycho[1])]
+                visRightPsycho[2] = [np.nanmean([np.nanmean(temp),j]) for temp,j in zip(psychoSpotData[i][2],visRightPsycho[2])]
+                visRightChrono[0] = visRightPsycho[0]
+                visRightChrono[1] = visRightPsycho[1]
+                visRightChrono[2] = [np.nanmedian([np.nanmedian(temp),j]) for temp,j in zip(psychoSpotData[i][3],visRightChrono[2])]
 
         for leftSpots in range(len(moLeftSpots)):
             if spotX == moLeftSpots[leftSpots][0] and spotY == moLeftSpots[leftSpots][1]:
                 moLeftPsycho[0] = psychoSpotData[i][0]
-                moLeftPsycho[1] = [i+j for i,j in zip(psychoSpotData[i][1],moLeftPsycho[1])]
-                moLeftPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[i][2],moLeftPsycho[2])]
+                moLeftPsycho[1] = [len(temp)+j for temp,j in zip(psychoSpotData[i][2],moLeftPsycho[1])]
+                moLeftPsycho[2] = [np.nanmean([np.nanmean(temp),j]) for temp,j in zip(psychoSpotData[i][2],moLeftPsycho[2])]
+                moLeftChrono[0] = moLeftPsycho[0]
+                moLeftChrono[1] = moLeftPsycho[1]
+                moLeftChrono[2] = [np.nanmedian([np.nanmedian(temp),j]) for temp,j in zip(psychoSpotData[i][3],moLeftChrono[2])]
         for rightSpots in range(len(moRightSpots)):
             if spotX == moRightSpots[rightSpots][0] and spotY == moRightSpots[rightSpots][1]:
                 moRightPsycho[0] = psychoSpotData[i][0]
-                moRightPsycho[1] = [i+j for i,j in zip(psychoSpotData[i][1],moRightPsycho[1])]
-                moRightPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[i][2],moRightPsycho[2])]
+                moRightPsycho[1] = [len(temp)+j for temp,j in zip(psychoSpotData[i][2],moRightPsycho[1])]
+                moRightPsycho[2] = [np.nanmean([np.nanmean(temp),j]) for temp,j in zip(psychoSpotData[i][2],moRightPsycho[2])]
+                moRightChrono[0] = moRightPsycho[0]
+                moRightChrono[1] = moRightPsycho[1]
+                moRightChrono[2] = [np.nanmedian([np.nanmedian(temp),j]) for temp,j in zip(psychoSpotData[i][3],moRightChrono[2])]
 
-        for ii in controlSpots:
-            if spotX == spots.iloc[ii][0] and spotY == spots.iloc[ii][1]:
-                controlSpotPsycho[0] = psychoSpotData[ii][0]
-                controlSpotPsycho[1] = [i+j for i,j in zip(psychoSpotData[ii][1],controlSpotPsycho[1])]
-                controlSpotPsycho[2] = [np.nanmean([i,j]) for i,j in zip(psychoSpotData[ii][2],controlSpotPsycho[2])] 
+        for jj in controlSpots:
+            if spotX == spots.iloc[jj][0] and spotY == spots.iloc[jj][1]:
+                controlSpotPsycho[0] = psychoSpotData[jj][0]
+                controlSpotPsycho[1] = [len(temp)+j for temp,j in zip(psychoSpotData[jj][2],controlSpotPsycho[1])]
+                controlSpotPsycho[2] = [np.nanmean([np.nanmean(temp),j]) for temp,j in zip(psychoSpotData[jj][2],controlSpotPsycho[2])] 
+                controlSpotChrono[0] = controlSpotPsycho[0]
+                controlSpotChrono[1] = controlSpotPsycho[1]
+                controlSpotChrono[2] = [np.nanmedian([np.nanmedian(temp),j]) for temp,j in zip(psychoSpotData[i][3],controlSpotChrono[2])]
                        
         
 
@@ -318,9 +345,10 @@ for subject in data:
         ## plotting psychometrics for different cortical groups
     lines = []
     print('Fitting psychometrics, {}/{} Done'.format(subIdx,len(data)))
-    fig = plt.figure()
-    dotColors = ['.b','.r','.g']
-    lineColors = ['-b','-r','-g']
+    fig,axs = plt.subplots(nrows=2,ncols=2)
+    ax=axs[0,0]
+    dotColors = ['.r','.b','.g']
+    lineColors = ['-r','-b','-g']
     plotCount = 0
     for psychoPlot in [visLeftPsycho, visRightPsycho, controlSpotPsycho]:
         fitParams = []
@@ -346,15 +374,17 @@ for subject in data:
         fitx = np.linspace(-1, 1, 100)
         fity = psychofit.erf_psycho_2gammas(params, fitx)
 
-        line = plt.plot(fitx, fity, lineColors[plotCount])
+        line = axs[0,0].plot(fitx, fity, lineColors[plotCount])
         lines.append(line)
-        plt.plot(psychoPlot[0], np.array(psychoPlot[2]), dotColors[plotCount])
+        axs[0,0].plot(psychoPlot[0], np.array(psychoPlot[2]), dotColors[plotCount])
         plotCount+=1
     ## Formatting the psychometric figure    
-    LvisLine = mpl.lines.Line2D([],[],color='blue',marker='.',label='L Vis Off')
-    RvisLine = mpl.lines.Line2D([],[],color='red',marker='.',label='R Vis Off')
+    LvisLine = mpl.lines.Line2D([],[],color='blue',marker='.',label='L Off')
+    RvisLine = mpl.lines.Line2D([],[],color='red',marker='.',label='R Off')
     cLine = mpl.lines.Line2D([],[],color='green',marker='.',label='Control Spots')
-    plt.legend(handles=[LvisLine,RvisLine,cLine])
+    ax.legend(handles=[LvisLine,RvisLine,cLine],loc='upper left')
+    ax.set_title('Visual Cortex')
+    ax.set_ylabel('Proportion CW')
     if len(np.unique(subject['subject'])) == 1:
         fig.suptitle(np.unique(subject['subject'])[0])
     else:
@@ -363,9 +393,7 @@ for subject in data:
 
     lines = []
     print('Fitting psychometrics, {}/{} Done'.format(subIdx,len(data)))
-    fig = plt.figure()
-    dotColors = ['.b','.r','.g']
-    lineColors = ['-b','-r','-g']
+    ax=axs[0,1]
     plotCount = 0
     for psychoPlot in [moLeftPsycho, moRightPsycho, controlSpotPsycho]:
         fitParams = []
@@ -391,19 +419,35 @@ for subject in data:
         fitx = np.linspace(-1, 1, 100)
         fity = psychofit.erf_psycho_2gammas(params, fitx)
 
-        line = plt.plot(fitx, fity, lineColors[plotCount])
+        line = ax.plot(fitx, fity, lineColors[plotCount])
         lines.append(line)
-        plt.plot(psychoPlot[0], np.array(psychoPlot[2]), dotColors[plotCount])
+        ax.plot(psychoPlot[0], np.array(psychoPlot[2]), dotColors[plotCount])
         plotCount+=1
     ## Formatting the psychometric figure    
-    LvisLine = mpl.lines.Line2D([],[],color='blue',marker='.',label='L Mo Off')
-    RvisLine = mpl.lines.Line2D([],[],color='red',marker='.',label='R Mo Off')
-    cLine = mpl.lines.Line2D([],[],color='green',marker='.',label='Control Spots')
-    plt.legend(handles=[LvisLine,RvisLine,cLine])
-    if len(np.unique(subject['subject'])) == 1:
-        fig.suptitle(np.unique(subject['subject'])[0])
-    else:
-        fig.suptitle('{} animals'.format(len(np.unique(subject['subject']))))
+ 
+    ax.set_title('Motor Cortex')
+
+    ## PLotting chronometric Curves
+    ax=axs[1,0]
+    dotColors = ['ro-','bo-','go-']
+    lineColors = ['-r','b','-g']
+    plotCount = 0
+    for chronoPlot in [visLeftChrono, visRightChrono, controlSpotChrono]:
+
+        ax.plot(chronoPlot[0], np.array(chronoPlot[2]), dotColors[plotCount])
+        plotCount+=1
+    ## Formatting the chronometric figure    
+    ax.set_ylabel('Reaction Time (s)')
+    ax.set_xlabel('Signed Contrast')
+
+    ax=axs[1,1]
+    plotCount = 0
+    for chronoPlot in [moLeftChrono, moRightChrono, controlSpotChrono]:
+
+        ax.plot(chronoPlot[0], np.array(chronoPlot[2]), dotColors[plotCount])
+        plotCount+=1
+    ## Formatting the chronometric figure    
+    ax.set_xlabel('Signed Contrast')
 
 
     pSizes = []
@@ -486,7 +530,7 @@ for subject in data:
     fig.legend(handles=legend_el,  loc='lower right', bbox_to_anchor=(1.5,.25), frameon=False,
               facecolor='w', columnspacing=10)
     subIdx+=1
-
+plt.show()
 
 
 

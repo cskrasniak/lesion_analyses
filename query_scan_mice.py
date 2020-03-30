@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from ibl_pipeline import subject, behavior
 import os
+import platform
 one = ONE()
 
 
@@ -29,7 +30,7 @@ def ONE_query_scan_mice(subject, date_range):
             DF[nans] = 0  # make all nans in contrasts 0 so I can subtract them
             DF['EID'] = [eid4[ses]] * np.size(scan4.data, 1)
             data_DF = data_DF.append(DF)
-    data_DF['signedContrast'] = np.subtract(data_DF.contrastRight, data_DF.contrastLeft)
+    data_DF['signedContrast'] = np.subtract(data_DF.contrastLeft, data_DF.contrastRight)
     data_DF['rt'] = np.subtract(data_DF.response_times, data_DF.goCueTimes)
     return data_DF
 
@@ -91,8 +92,10 @@ def align_laser2behavior(subjects):
     that has been changed from a .m file to .npy and added to the subjects folder by using the
     laser2npy.m function. this takes in a list of subjects as an argument and outputs a list of
     dataframes that have simple behavior data as well as laser positions added to it'''
-
-    dataPath = "F:\Subjects"
+    if platform.system() == 'Darwin':
+        dataPath = '/Users/ckrasnia/Desktop/Zador_Lab/scanData/Subjects'
+    else:
+        dataPath = "F:\Subjects"
     allData = []
     for sub in subjects: # loop over subjects
         os.chdir(dataPath)
