@@ -54,7 +54,7 @@ def DJ_fetch_DF(subjects, useDates):
             print('grabbing data from ' + sub + ' for ' + useDates)
             trials = behavior.TrialSet.Trial & subs & 'DATE(session_start_time) >= "{}"'.format(useDates)
             trials = trials * trials.proj(session_start_date='DATE(session_start_time)')
-            trials = trials * trials.proj(signed_contrast='trial_stim_contrast_right - trial_stim_contrast_left')
+            trials = trials * trials.proj(signed_contrast='trial_stim_contrast_left - trial_stim_contrast_right')
 
             allSessions = pd.DataFrame(trials.fetch('subject_uuid', 'session_start_date',
                                                     'trial_id', 'trial_response_time',
@@ -66,7 +66,7 @@ def DJ_fetch_DF(subjects, useDates):
             trials = behavior.TrialSet.Trial & subs & 'DATE(session_start_time) \
                 >= "{}"'.format(useDates[0])
             trials = trials * trials.proj(
-                signed_contrast='trial_stim_contrast_right - trial_stim_contrast_left')
+                signed_contrast='trial_stim_contrast_left - trial_stim_contrast_right')
             trials = trials * trials.proj(session_start_date='DATE(session_start_time)')
             allSessions = pd.DataFrame(trials.fetch('subject_uuid', 'session_start_date',
                                                     'trial_id', 'trial_response_time',
@@ -93,11 +93,12 @@ def align_laser2behavior(subjects):
     laser2npy.m function. this takes in a list of subjects as an argument and outputs a list of
     dataframes that have simple behavior data as well as laser positions added to it'''
     if platform.system() == 'Darwin':
-        dataPath = '/Users/ckrasnia/Desktop/Zador_Lab/scanData/Subjects'
+        dataPath = '/Users/ckrasnia/Desktop/Zador_Lab/scanData/Subjects1'
     else:
         dataPath = "F:\Subjects"
     allData = []
-    for sub in subjects: # loop over subjects
+   #  print('getting laser data from {}'.format(dataPath))
+    for sub in subjects:  # loop over subjects
         os.chdir(dataPath)
         days = os.listdir(sub)
         training = []
@@ -112,11 +113,10 @@ def align_laser2behavior(subjects):
             for run in runs:
                 print('Run #{}'.format(run))
                 os.chdir(os.path.join(dataPath, sub, day, run))
-                if len(os.listdir()) >= 1: # if there is laser data in the folder, load it
+                if len(os.listdir()) >= 1:  # if there is laser data in the folder, load it
                     ld = np.load("laserData")
 # if the laser data is one longer than the behavior, remove the last laser and align to the start
                 if len(ld) - 1 == np.size(behav, 0):
-                    print('here')
                     if np.shape(ld)[1] == 1:
                         behav['laserOn'] = ld[:-1, 0]
                         training.append(behav)
@@ -130,12 +130,10 @@ def align_laser2behavior(subjects):
                 elif len(ld) == np.size(behav, 0) - 1:
                     if np.shape(ld)[1] == 1:
                         behav.drop(behav.tail(1).index, inplace=True)
-                        print([len(behav), len(ld)])
-                        ld = ld[:, 0]
+                        behav['laserOn'] = ld[:, 0]
                         training.append(behav)
                     elif ld[0, 2].any():             
                         behav.drop(behav.tail(1).index, inplace=True)
-                        print([len(behav), len(ld)])
                         behav['laserPosX'] = ld[:, 0]
                         behav['laserPosY'] = ld[:, 1]
                         training.append(behav)
@@ -155,7 +153,6 @@ def align_laser2behavior(subjects):
 
                 elif len(ld) == np.size(behav, 0):
                     if np.shape(ld)[1] == 1:
-                        print(np.shape(ld))
                         behav['laserOn'] = ld[:, 0]
                         training.append(behav)
                     elif ld[0, 2].any():  # if marked 'laser on'
