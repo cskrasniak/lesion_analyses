@@ -225,8 +225,6 @@ def psych_cumNorm(params, x):
     lamb = params[3]  # lapse High
     y = gamma + (1 - gamma - lamb) * .5 * erfc(-invSigma *(x-mu) / np.sqrt(2))
     return y
-def psycho_bs(params, data, P_model='psych_cumNorm', parstart=None, parmin=None, parmax=None,nboot=1000)
-    bs_data = np.random.randsample()
 
 def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho'):
     """
@@ -269,7 +267,7 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
             sems.append(stats.sem(tempPsych[c]))
 
         ## Bootstrap confidence intervals
-        nboots = 100
+        nboots = 25
         bootFits = pd.DataFrame(columns=['threshold','slope','gamma','lambda'], index=range(nboots))
         bootData = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.array([])]*len(psychoSpotData[0][1])]
         bootData[0] = psycho[0]
@@ -299,7 +297,7 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
             
 
         a = .05
-        CIs = pd.DataFrame(columns=['threshold','slope','gamma','lambda'])
+        CIs = []
         for i in bootFits.columns:
             CIs.append([np.percentile(bootFits[i],100-a/2), np.percentile(bootFits[i],a/2,)])
             
@@ -594,36 +592,49 @@ for subject in data:
 plt.show(block=False)
 
 ## subject comparison analyses
-df = pd.DataFrame(index=range(len(subList)*3), columns=['thresh', 'slope', 'gamma', 'lambda','subject', 'laserLocation'])
+allParams = pd.DataFrame(index=range(len(subList)*3), columns=['thresh', 'slope', 'gamma', 'lambda','subject', 'laserLocation'])
+allCIs = pd.DataFrame(index=range(len(subList)*3), columns=['thresh', 'slope', 'gamma', 'lambda','subject', 'laserLocation'])
 laserLocs = ['Left','Right','Control']
 cnt = 0
 for i in range(3):
     pars = visPsychoParams[:][i]
     for j in range(len(subList)):
-        df.iloc[cnt,:4] = (visPsychoParams[j][i])
-        df.iloc[cnt,4] = subList[j]
-        df.iloc[cnt,5] = laserLocs[i]
+        allParams.iloc[cnt,:4] = (visPsychoParams[j][i])
+        allParams.iloc[cnt,4] = subList[j]
+        allParams.iloc[cnt,5] = laserLocs[i]
+        allCIs.iloc[cnt,:4] = visPsychoCIs[j][i]
+        allCIs.iloc[cnt,4] = subList[j]
+        allCIs.iloc[cnt,5] = laserLocs[i]
         cnt+=1
 
 fig, axs = plt.subplots(nrows=2,ncols=2)
 ax1=axs[0,0]
-sns.barplot(x='laserLocation', y='thresh', data=df,ax=ax1,ci=None, palette='Greys', alpha=.5)
-sns.scatterplot(x='laserLocation', y='thresh', data=df, hue='subject',ax=ax1)
+sns.barplot(x='laserLocation', y='thresh', data=allParams,ax=ax1,ci=None, palette='Greys', alpha=.5)
+sns.scatterplot(x='laserLocation', y='thresh', data=allParams, hue='subject',ax=ax1)
+err_bar_from_CIs(allCIs, 'laserLocation', 'thresh', ax1)
 ax1.get_legend().remove()
 ax2 = axs[0,1]
-sns.barplot(x='laserLocation', y='slope', data=df,ax=ax2,ci=None, palette='Greys', alpha=.5)
-sns.scatterplot(x='laserLocation', y='slope', data=df, hue='subject',ax=ax2)
+sns.barplot(x='laserLocation', y='slope', data=allParams,ax=ax2,ci=None, palette='Greys', alpha=.5)
+sns.scatterplot(x='laserLocation', y='slope', data=allParams, hue='subject',ax=ax2)
+err_bar_from_CIs(allCIs, 'laserLocation', 'slope', ax2)
 ax2.get_legend().remove()
 ax3 = axs[1,0]
-sns.barplot(x='laserLocation', y='gamma', data=df,ax=ax3,ci=None, palette='Greys', alpha=.5)
-sns.scatterplot(x='laserLocation', y='gamma', data=df, hue='subject',ax=ax3)
+sns.barplot(x='laserLocation', y='gamma', data=allParams,ax=ax3,ci=None, palette='Greys', alpha=.5)
+sns.scatterplot(x='laserLocation', y='gamma', data=allParams, hue='subject',ax=ax3)
+err_bar_from_CIs(allCIs, 'laserLocation', 'gamma', ax3)
 ax3.get_legend().remove()
 ax4 = axs[1,1]
-sns.barplot(x='laserLocation', y='lambda', data=df,ax=ax4,ci=None, palette='Greys', alpha=.5)
-sns.scatterplot(x='laserLocation', y='lambda', data=df, hue='subject',ax=ax4)
+sns.barplot(x='laserLocation', y='lambda', data=allParams,ax=ax4,ci=None, palette='Greys', alpha=.5)
+sns.scatterplot(x='laserLocation', y='lambda', data=allParams, hue='subject',ax=ax4)
+err_bar_from_CIs(allCIs, 'laserLocation', 'lambda', ax4)
 ax4.get_legend().remove()
 plt.show(block=False)
 
 
+def err_bar_from_CIs(allCIs, x, y, ax):
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+    colors = cycle(prop_cycle.by_key()['color'])
+    for i in range(len(allCIs)):
 
-
+        ax.axvline(x=allCIs[x][i], ymin=allCIs[y][i][1], ymax=allCIs[y][i][0],lw=1,color='k')
+        
