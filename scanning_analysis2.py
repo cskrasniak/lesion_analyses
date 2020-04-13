@@ -290,7 +290,7 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
                                                             parstart=np.array([0, 50, .5, .5]),
                                                             parmin=np.array([-5, 0., 0., 0.]),
                                                             parmax=np.array([5, 100., 1, 1]),
-                                                            nfits=20)
+                                                            nfits=2)
                 
                 fitParams.append(pars)
                 fitLikes.append(L)
@@ -299,10 +299,10 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
             
 
         a = .05
-        CIs = pd.DataFrame(columns=['threshold','slope','gamma','lambda'], index=['high','low'])
+        CIs = pd.DataFrame(columns=['threshold','slope','gamma','lambda'])
         for i in bootFits.columns:
-            CIs[i]['high'] = np.percentile(bootFits[i],100-a/2)
-            CIs[i]['low'] = np.percentile(bootFits[i],a/2,)
+            CIs.append([np.percentile(bootFits[i],100-a/2), np.percentile(bootFits[i],a/2,)])
+            
 
 
             ## plotting psychometrics for different cortical groups
@@ -310,22 +310,18 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
         
         fitParams = []
         fitLikes = []
-        for repeat in range(20):
+        for repeat in range(2):
             parStart = np.array([-5+np.random.rand()*10,0+np.random.rand()*100, 0+np.random.rand(), 0+np.random.rand()])
             params, L = psychofit.mle_fit_psycho(psycho,
                                         P_model='erf_psycho_2gammas',
                                         parstart=parStart,
                                         parmin=np.array([-5, 0., 0., 0.]),
                                         parmax=np.array([5, 100., 1, 1]),
-                                        nfits=25)
+                                        nfits=2)
             fitParams.append(params)
             fitLikes.append(L)
             # find the best params (with the lowest neg likelihood)
         params = fitParams[np.where(min(fitLikes))[0][0]]
-        spotBias[i][subIdx] = params[0]
-        spotSlope[i][subIdx] = params[1]
-        spotLapseLow[i][subIdx] = params[2]
-        spotLapseHigh[i][subIdx] = params[3]
 
         spotFits.append(params)
         #plot the psychometrics
@@ -358,6 +354,7 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
             chrono[2][c] = np.nanmedian(tempChrono[c])
             sems.append(stats.sem(tempChrono[c]))
         ax.errorbar(chrono[0], np.array(chrono[2]), yerr=sems, color=color, marker='.',ms=4)
+        ax.set_ylim(.15,.5)
         params = None
         CIs = None
     else:
@@ -389,13 +386,13 @@ plotContrasts = [1, .25, .125, .0625, 0]  # 1, .25, .125, list of contrasts to u
 
 visLeftSpots = np.array([[-2.5,-1.5],[-3.5,-1.5],[-2.5,-2.5],[-3.5,-2.5]])
 visRightSpots = np.array([[2.5,-1.5],[3.5,-1.5],[2.5,-2.5],[3.5,-2.5]])
-visPsychoParams = [[[],[],[]]]*len(data)
-visPsychoCIs = [[]] *len(data)
+visPsychoParams = [[],[],[],[],[]]
+visPsychoCIs = [[],[],[],[],[]]
 
 moLeftSpots = np.array([[-1.5,.5],[-1.5,1.5],[-1.5,2.5],[-2.5,1.5]])
 moRightSpots = np.array([[1.5,.5],[1.5,1.5],[1.5,2.5],[2.5,1.5]])
-moPsychoParams = [[[],[],[]]]*len(data)
-moPsychoCIs = [[]] *len(data)
+moPsychoParams = [[],[],[],[],[]]
+moPsychoCIs = [[],[],[],[],[]]
 
 for subject in data:
 
@@ -468,9 +465,10 @@ for subject in data:
     controlCoords = np.array([[spots.iloc[i,0],spots.iloc[i,1]] for i in controlSpots])
     
     for psychoSpots in [visLeftSpots, visRightSpots, controlCoords]:
-        visPsychoParams[subIdx][plotCount], visPsychoCIs[subIdx] = plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax1, plotType='psycho')
+        vPP, vPC = plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax1, plotType='psycho')
+        visPsychoParams[subIdx].append(vPP)
+        visPsychoCIs[subIdx].append(vPC)
         plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax2, plotType='chrono')
-        visPsychoParams[subIdx][plotCount][1] = 1/visPsychoParams[subIdx][plotCount][1]  #taking the inverse to get slope
         plotCount+=1
     # psychos and chronos for motor cortex
     ax1 = axs[0,1]
@@ -478,17 +476,17 @@ for subject in data:
     ax2 = axs[1,1]
     ax2.set_xlabel('Signed Contrast')
     plotCount = 0
-    for psychoPlot in [moLeftSpots, moRightSpots, controlCoords]:
-        moPsychoParams[subIdx][plotCount], moPsychoCIs[subIdx] = plot_from_spots(psychoPlot, psychoSpotData, spots, colors[plotCount], ax1)
-        moPsychoParams[subIdx][plotCount][1] = 1/moPsychoParams[subIdx][plotCount][1]
-        plot_from_spots(psychoPlot, psychoSpotData, spots, colors[plotCount], ax2, plotType='chrono')
-        plotCount+=1
+    # for psychoPlot in [moLeftSpots, moRightSpots, controlCoords]:
+    #     moPsychoParams[subIdx][plotCount], moPsychoCIs[subIdx] = plot_from_spots(psychoPlot, psychoSpotData, spots, colors[plotCount], ax1)
+    #     moPsychoParams[subIdx][plotCount][1] = 1/moPsychoParams[subIdx][plotCount][1]
+    #     plot_from_spots(psychoPlot, psychoSpotData, spots, colors[plotCount], ax2, plotType='chrono')
+    #     plotCount+=1
     
     ## making the figure legend and title  
     LvisLine = mpl.lines.Line2D([],[],color='red',marker='.',label='L Off')
     RvisLine = mpl.lines.Line2D([],[],color='blue',marker='.',label='R Off')
     cLine = mpl.lines.Line2D([],[],color='green',marker='.',label='Control')
-    ax.legend(handles=[LvisLine,RvisLine,cLine],loc='lower right')
+    ax2.legend(handles=[LvisLine,RvisLine,cLine],loc='lower right')
     if len(np.unique(subject['subject'])) == 1:
         fig.suptitle(np.unique(subject['subject'])[0])
     else:
@@ -590,17 +588,41 @@ for subject in data:
               facecolor='w', columnspacing=10)
     subIdx+=1
     if len(np.unique(subject['subject'])) == 1:
-        sublist.append(np.unique(subject['subject'])[0])
+        subList.append(np.unique(subject['subject'])[0])
     else:
-        sublist.append('{} animals'.format(len(np.unique(subject['subject']))))
+        subList.append('{} animals'.format(len(np.unique(subject['subject']))))
 plt.show(block=False)
 
 ## subject comparison analyses
-for i in range(len(sublist)):
-    
-for i in range(len(visPsychoParams)):
-    allParams = {sublist(i):visPsychoParams[i]}
-    plt.scatter
+df = pd.DataFrame(index=range(len(subList)*3), columns=['thresh', 'slope', 'gamma', 'lambda','subject', 'laserLocation'])
+laserLocs = ['Left','Right','Control']
+cnt = 0
+for i in range(3):
+    pars = visPsychoParams[:][i]
+    for j in range(len(subList)):
+        df.iloc[cnt,:4] = (visPsychoParams[j][i])
+        df.iloc[cnt,4] = subList[j]
+        df.iloc[cnt,5] = laserLocs[i]
+        cnt+=1
+
+fig, axs = plt.subplots(nrows=2,ncols=2)
+ax1=axs[0,0]
+sns.barplot(x='laserLocation', y='thresh', data=df,ax=ax1,ci=None, palette='Greys', alpha=.5)
+sns.scatterplot(x='laserLocation', y='thresh', data=df, hue='subject',ax=ax1)
+ax1.get_legend().remove()
+ax2 = axs[0,1]
+sns.barplot(x='laserLocation', y='slope', data=df,ax=ax2,ci=None, palette='Greys', alpha=.5)
+sns.scatterplot(x='laserLocation', y='slope', data=df, hue='subject',ax=ax2)
+ax2.get_legend().remove()
+ax3 = axs[1,0]
+sns.barplot(x='laserLocation', y='gamma', data=df,ax=ax3,ci=None, palette='Greys', alpha=.5)
+sns.scatterplot(x='laserLocation', y='gamma', data=df, hue='subject',ax=ax3)
+ax3.get_legend().remove()
+ax4 = axs[1,1]
+sns.barplot(x='laserLocation', y='lambda', data=df,ax=ax4,ci=None, palette='Greys', alpha=.5)
+sns.scatterplot(x='laserLocation', y='lambda', data=df, hue='subject',ax=ax4)
+ax4.get_legend().remove()
+plt.show(block=False)
 
 
 
