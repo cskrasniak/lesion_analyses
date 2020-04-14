@@ -54,7 +54,7 @@ def DJ_fetch_DF(subjects, useDates):
             print('grabbing data from ' + sub + ' for ' + useDates)
             trials = behavior.TrialSet.Trial & subs & 'DATE(session_start_time) >= "{}"'.format(useDates)
             trials = trials * trials.proj(session_start_date='DATE(session_start_time)')
-            trials = trials * trials.proj(signed_contrast='trial_stim_contrast_left - trial_stim_contrast_right')
+            trials = trials * trials.proj(signed_contrast='trial_stim_contrast_right - trial_stim_contrast_left')
 
             allSessions = pd.DataFrame(trials.fetch('subject_uuid', 'session_start_date',
                                                     'trial_id', 'trial_response_time',
@@ -66,7 +66,7 @@ def DJ_fetch_DF(subjects, useDates):
             trials = behavior.TrialSet.Trial & subs & 'DATE(session_start_time) \
                 >= "{}"'.format(useDates[0])
             trials = trials * trials.proj(
-                signed_contrast='trial_stim_contrast_left - trial_stim_contrast_right')
+                signed_contrast='trial_stim_contrast_right - trial_stim_contrast_left')
             trials = trials * trials.proj(session_start_date='DATE(session_start_time)')
             allSessions = pd.DataFrame(trials.fetch('subject_uuid', 'session_start_date',
                                                     'trial_id', 'trial_response_time',
@@ -93,7 +93,7 @@ def align_laser2behavior(subjects):
     laser2npy.m function. this takes in a list of subjects as an argument and outputs a list of
     dataframes that have simple behavior data as well as laser positions added to it'''
     if platform.system() == 'Darwin':
-        dataPath = '/Users/ckrasnia/Desktop/Zador_Lab/scanData/Subjects1'
+        dataPath = '/Users/ckrasnia/Desktop/Zador_Lab/scanData/Subjects'
     else:
         dataPath = "F:\Subjects"
     allData = []
