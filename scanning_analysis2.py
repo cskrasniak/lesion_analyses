@@ -267,7 +267,7 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
             sems.append(stats.sem(tempPsych[c]))
 
         ## Bootstrap confidence intervals
-        nboots = 25
+        nboots = 10
         bootFits = pd.DataFrame(columns=['threshold','slope','gamma','lambda'], index=range(nboots))
         bootData = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.array([])]*len(psychoSpotData[0][1])]
         bootData[0] = psycho[0]
@@ -308,14 +308,14 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
         
         fitParams = []
         fitLikes = []
-        for repeat in range(2):
+        for repeat in range(10):
             parStart = np.array([-5+np.random.rand()*10,0+np.random.rand()*100, 0+np.random.rand(), 0+np.random.rand()])
             params, L = psychofit.mle_fit_psycho(psycho,
                                         P_model='erf_psycho_2gammas',
                                         parstart=parStart,
                                         parmin=np.array([-5, 0., 0., 0.]),
                                         parmax=np.array([5, 100., 1, 1]),
-                                        nfits=2)
+                                        nfits=25)
             fitParams.append(params)
             fitLikes.append(L)
             # find the best params (with the lowest neg likelihood)
@@ -358,6 +358,13 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
     else:
         raise Exception("This is not a supported plot type, choose 'psycho' or 'chrono'")
     return params, CIs
+
+def err_bar_from_CIs(allCIs, x, y, ax):
+
+    for i in range(len(allCIs)):
+
+        ax.axvline(x=allCIs[x][i], ymin=allCIs[y][i][1], ymax=allCIs[y][i][0],lw=1,color='k')
+        
 
 ################################# Start of script #########################################
 
@@ -474,17 +481,18 @@ for subject in data:
     ax2 = axs[1,1]
     ax2.set_xlabel('Signed Contrast')
     plotCount = 0
-    # for psychoPlot in [moLeftSpots, moRightSpots, controlCoords]:
-    #     moPsychoParams[subIdx][plotCount], moPsychoCIs[subIdx] = plot_from_spots(psychoPlot, psychoSpotData, spots, colors[plotCount], ax1)
-    #     moPsychoParams[subIdx][plotCount][1] = 1/moPsychoParams[subIdx][plotCount][1]
-    #     plot_from_spots(psychoPlot, psychoSpotData, spots, colors[plotCount], ax2, plotType='chrono')
-    #     plotCount+=1
+    for psychoSpots in [moLeftSpots, moRightSpots, controlCoords]:
+        mPP, mPC = plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax1, plotType='psycho')
+        moPsychoParams[subIdx].append(mPP)
+        moPsychoCIs[subIdx].append(mPC)
+        plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax2, plotType='chrono')
+        plotCount+=1
     
     ## making the figure legend and title  
     LvisLine = mpl.lines.Line2D([],[],color='red',marker='.',label='L Off')
     RvisLine = mpl.lines.Line2D([],[],color='blue',marker='.',label='R Off')
     cLine = mpl.lines.Line2D([],[],color='green',marker='.',label='Control')
-    ax2.legend(handles=[LvisLine,RvisLine,cLine],loc='lower right')
+    ax2.legend(handles=[LvisLine,RvisLine,cLine],loc='upper right')
     if len(np.unique(subject['subject'])) == 1:
         fig.suptitle(np.unique(subject['subject'])[0])
     else:
@@ -607,34 +615,106 @@ for i in range(3):
         allCIs.iloc[cnt,5] = laserLocs[i]
         cnt+=1
 
+allParams.slope = 1/allParams.slope
+colors = ['light blue', 'light green','light violet','dusty orange','black']
+pal = sns.dark_palette('blue') 
 fig, axs = plt.subplots(nrows=2,ncols=2)
 ax1=axs[0,0]
-sns.barplot(x='laserLocation', y='thresh', data=allParams,ax=ax1,ci=None, palette='Greys', alpha=.5)
-sns.scatterplot(x='laserLocation', y='thresh', data=allParams, hue='subject',ax=ax1)
-err_bar_from_CIs(allCIs, 'laserLocation', 'thresh', ax1)
+sns.barplot(x='laserLocation', y='thresh', data=allParams,ax=ax1,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='thresh', data=allParams, hue='subject',ax=ax1)
+sns.pointplot(x='laserLocation', y='thresh', data=allParams,hue='subject', ax=ax1, palette=pal)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'thresh', ax1)
 ax1.get_legend().remove()
+ax1.set_xlabel('')
+ax1.set_ylabel('detection threshold\n(contrast fraction)')
+
 ax2 = axs[0,1]
-sns.barplot(x='laserLocation', y='slope', data=allParams,ax=ax2,ci=None, palette='Greys', alpha=.5)
-sns.scatterplot(x='laserLocation', y='slope', data=allParams, hue='subject',ax=ax2)
-err_bar_from_CIs(allCIs, 'laserLocation', 'slope', ax2)
+sns.barplot(x='laserLocation', y='slope', data=allParams,ax=ax2,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='slope', data=allParams, hue='subject',ax=ax2)
+sns.pointplot(x='laserLocation', y='slope', data=allParams,hue='subject', ax=ax2, palette=pal)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'slope', ax2)
 ax2.get_legend().remove()
+ax2.set_xlabel('')
+ax2.set_ylabel('slope\n(choose left/contrast)')
+
 ax3 = axs[1,0]
-sns.barplot(x='laserLocation', y='gamma', data=allParams,ax=ax3,ci=None, palette='Greys', alpha=.5)
-sns.scatterplot(x='laserLocation', y='gamma', data=allParams, hue='subject',ax=ax3)
-err_bar_from_CIs(allCIs, 'laserLocation', 'gamma', ax3)
+sns.barplot(x='laserLocation', y='gamma', data=allParams,ax=ax3,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='gamma', data=allParams, hue='subject',ax=ax3)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'gamma', ax3)
+sns.pointplot(x='laserLocation', y='gamma', data=allParams,hue='subject', ax=ax3, palette=pal)
 ax3.get_legend().remove()
+ax3.set_ylabel('right lapse\n(fraction contrast)')
+
 ax4 = axs[1,1]
-sns.barplot(x='laserLocation', y='lambda', data=allParams,ax=ax4,ci=None, palette='Greys', alpha=.5)
-sns.scatterplot(x='laserLocation', y='lambda', data=allParams, hue='subject',ax=ax4)
-err_bar_from_CIs(allCIs, 'laserLocation', 'lambda', ax4)
+sns.barplot(x='laserLocation', y='lambda', data=allParams,ax=ax4,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='lambda', data=allParams, hue='subject',ax=ax4)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'lambda', ax4)
+sns.pointplot(x='laserLocation', y='lambda', data=allParams,hue='subject', ax=ax4, palette=pal)
 ax4.get_legend().remove()
+ax4.set_ylabel('left lapse\n(fraction contrast)')
+
 plt.show(block=False)
 
+moAllParams = pd.DataFrame(index=range(len(subList)*3), columns=['thresh', 'slope', 'gamma', 'lambda','subject', 'laserLocation'])
+moAllCIs = pd.DataFrame(index=range(len(subList)*3), columns=['thresh', 'slope', 'gamma', 'lambda','subject', 'laserLocation'])
+cnt=0
+for i in range(3):
+    pars = visPsychoParams[:][i]
+    for j in range(len(subList)):
+        moAllParams.iloc[cnt,:4] = (moPsychoParams[j][i])
+        moAllParams.iloc[cnt,4] = subList[j]
+        moAllParams.iloc[cnt,5] = laserLocs[i]
+        moAllCIs.iloc[cnt,:4] = moPsychoCIs[j][i]
+        moAllCIs.iloc[cnt,4] = subList[j]
+        moAllCIs.iloc[cnt,5] = laserLocs[i]
+        cnt+=1
+moAllParams.slope = 1/moAllParams.slope
+fig, axs = plt.subplots(nrows=2,ncols=2)
+ax1=axs[0,0]
+sns.barplot(x='laserLocation', y='thresh', data=moAllParams,ax=ax1,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='thresh', data=moAllParams, hue='subject',ax=ax1)
+sns.pointplot(x='laserLocation', y='thresh', data=moAllParams,hue='subject', ax=ax1, palette=pal)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'thresh', ax1)
+ax1.get_legend().remove()
+ax1.set_xlabel('')
+ax1.set_ylabel('detection threshold\n(contrast fraction)')
 
-def err_bar_from_CIs(allCIs, x, y, ax):
-    prop_cycle = plt.rcParams['axes.prop_cycle']
-    colors = cycle(prop_cycle.by_key()['color'])
-    for i in range(len(allCIs)):
+ax2 = axs[0,1]
+sns.barplot(x='laserLocation', y='slope', data=moAllParams,ax=ax2,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='slope', data=moAllParams, hue='subject',ax=ax2)
+sns.pointplot(x='laserLocation', y='slope', data=moAllParams,hue='subject', ax=ax2, palette=pal)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'slope', ax2)
+ax2.get_legend().remove()
+ax2.set_xlabel('')
+ax2.set_ylabel('slope\n(choose left/contrast)')
 
-        ax.axvline(x=allCIs[x][i], ymin=allCIs[y][i][1], ymax=allCIs[y][i][0],lw=1,color='k')
-        
+ax3 = axs[1,0]
+sns.barplot(x='laserLocation', y='gamma', data=moAllParams,ax=ax3,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='gamma', data=moAllParams, hue='subject',ax=ax3)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'gamma', ax3)
+sns.pointplot(x='laserLocation', y='gamma', data=moAllParams,hue='subject', ax=ax3, palette=pal)
+ax3.get_legend().remove()
+ax3.set_ylabel('right lapse\n(fraction contrast)')
+
+ax4 = axs[1,1]
+sns.barplot(x='laserLocation', y='lambda', data=moAllParams,ax=ax4,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='lambda', data=moAllParams, hue='subject',ax=ax4)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'lambda', ax4)
+sns.pointplot(x='laserLocation', y='lambda', data=moAllParams,hue='subject', ax=ax4, palette=pal)
+ax4.get_legend().remove()
+ax4.set_ylabel('left lapse\n(fraction contrast)')
+
+plt.show(block=False)
+
+vLeft = allParams.iloc[:4]
+vRight = allParams.iloc[5:9]
+vControl = allParams.iloc[10:14]
+mLeft = moAllParams.iloc[:4]
+mRight = moAllParams.iloc[5:9]
+mControl = moAllParams.iloc[10:14]
+anovaP =  pd.DataFrame(index=['vis','mo'], columns=['thresh', 'slope', 'gamma', 'lambda']) 
+for i in anovaP.columns:
+    t1, p1 =  scipy.stats.ttest_ind(np.array(vLeft[i]), np.array(vRight[i]), np.array(vControl[i])) 
+    t2, p2 = scipy.stats.ttest_ind(np.array(mLeft[i]), np.array(mRight[i]), np.array(mControl[i]))
+    anovaP[i]['vis'] = p1
+    anovaP[i]['mo'] = p2
