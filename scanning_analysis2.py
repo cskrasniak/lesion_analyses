@@ -277,7 +277,7 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
             if not(cnt % 5):
                 print(int(cnt/nboots*100), sep=' ', end='%,', flush=True)
             for j in range(len(tempPsych)):
-                bootData[2][j] = np.random.choice(tempPsych[j],size=int(len(tempPsych[j])/2), replace=True)                
+                bootData[2][j] = np.random.choice(tempPsych[j],size=int(len(tempPsych[j])/1.25), replace=True)                
                 bootData[1][j] = len(bootData[2][j])
                 bootData[2][j] = np.mean(bootData[2][j])
             fitParams = []
@@ -353,7 +353,10 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
             sems.append(stats.sem(tempChrono[c]))
         ax.errorbar(chrono[0], np.array(chrono[2]), yerr=sems, color=color, marker='.',ms=4)
         ax.set_ylim(.15,.5)
-        params = None
+# the params I use here are RT at 0 contrast, 'RT bias' which is pairwise RT left- RT right, and 
+# peakiness which is the ratio of max RT to the average of the two 100% RTs
+        p2 = (chrono[2][0] - chrono[2][-1]) + (chrono[2][1] - chrono[2][-2] + (chrono[2][2] - chrono[2][-3]) + (chrono[2][3] - chrono[2][-4]))
+        params = [chrono[2][4], p2, max(chrono[2])/np.mean([chrono[2][0],chrono[2][-1]])] 
         CIs = None
     else:
         raise Exception("This is not a supported plot type, choose 'psycho' or 'chrono'")
@@ -393,11 +396,13 @@ visLeftSpots = np.array([[-2.5,-1.5],[-3.5,-1.5],[-2.5,-2.5],[-3.5,-2.5]])
 visRightSpots = np.array([[2.5,-1.5],[3.5,-1.5],[2.5,-2.5],[3.5,-2.5]])
 visPsychoParams = [[],[],[],[],[]]
 visPsychoCIs = [[],[],[],[],[]]
+visChronoParams = [[],[],[],[],[]]
 
 moLeftSpots = np.array([[-1.5,.5],[-1.5,1.5],[-1.5,2.5],[-2.5,1.5]])
 moRightSpots = np.array([[1.5,.5],[1.5,1.5],[1.5,2.5],[2.5,1.5]])
 moPsychoParams = [[],[],[],[],[]]
 moPsychoCIs = [[],[],[],[],[]]
+moChronoParams = [[],[],[],[],[]]
 
 for subject in data:
 
@@ -473,7 +478,8 @@ for subject in data:
         vPP, vPC = plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax1, plotType='psycho')
         visPsychoParams[subIdx].append(vPP)
         visPsychoCIs[subIdx].append(vPC)
-        plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax2, plotType='chrono')
+        vCP, vCC = plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax2, plotType='chrono')
+        visChronoParams[subIdx].append(vCP)
         plotCount+=1
     # psychos and chronos for motor cortex
     ax1 = axs[0,1]
@@ -485,12 +491,13 @@ for subject in data:
         mPP, mPC = plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax1, plotType='psycho')
         moPsychoParams[subIdx].append(mPP)
         moPsychoCIs[subIdx].append(mPC)
-        plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax2, plotType='chrono')
+        mCP, mCC = plot_from_spots(psychoSpots, psychoSpotData, spots, colors[plotCount], ax2, plotType='chrono')
+        moChronoParams[subIdx].append(mCP)
         plotCount+=1
     
     ## making the figure legend and title  
-    LvisLine = mpl.lines.Line2D([],[],color='red',marker='.',label='L Off')
-    RvisLine = mpl.lines.Line2D([],[],color='blue',marker='.',label='R Off')
+    LvisLine = mpl.lines.Line2D([],[],color='red',marker='.',label='Laser Left')
+    RvisLine = mpl.lines.Line2D([],[],color='blue',marker='.',label='Laser Right')
     cLine = mpl.lines.Line2D([],[],color='green',marker='.',label='Control')
     ax2.legend(handles=[LvisLine,RvisLine,cLine],loc='upper right')
     if len(np.unique(subject['subject'])) == 1:
@@ -515,13 +522,13 @@ for subject in data:
     ## sorting Pvals into different categories
     pSizes = []
     useToPlot = goLeft
-    plotLabels = ['Percent Choose Left', 'Percent Choose Right', 'Percent No Go', 'Response Time', 'Percent Correct']
+    plotLabels = ['Percent Leftward Choice', 'Percent Choose Right', 'Percent No Go', 'Response Time', 'Percent Correct']
     for p in pVals:
         # Bonferroni correction, dev by num spots
         if p[useToPlot] <= .0001 / len(spots):
             pSizes.append(300)
         elif p[useToPlot] <= .001 / len(spots):
-            pSizes.append(200)
+            pSizes.append(175)
         elif p[useToPlot] <= .01 / len(spots):
             pSizes.append(100)
         else:
@@ -561,7 +568,7 @@ for subject in data:
                          hue=useHue, palette=cmap, legend=False, edgecolor='k', hue_norm = norm)
 
     for x, y, p, h in zip(allenSpotsX,allenSpotsY,pSizes,useHue):
-        if p == 300:
+        if p >= 210:
             plt.text(x,y,str(int(h)),horizontalalignment='center', verticalalignment='center', color=textColor)
 
     plt.text(max(allenSpotsX) + 80, 180, 'n = {} trials'.format(numTrials))
@@ -582,9 +589,9 @@ for subject in data:
     cb.set_label(plotLabels[useToPlot])
     
     legend_el = [mpl.lines.Line2D([0], [0], marker='o', color='w', label='p < .0001', markerfacecolor='k',
-                        markersize=23),
+                        markersize=21),
                  mpl.lines.Line2D([0], [0], marker='o', color='w', label='p < .001', markerfacecolor='k',
-                        markersize=18),
+                        markersize=17),
                  mpl.lines.Line2D([0], [0], marker='o', color='w', label='p < .01', markerfacecolor='k',
                         markersize=13),
                  mpl.lines.Line2D([0], [0], marker='o', color='w', label='p > .01', markerfacecolor='k',
@@ -602,6 +609,8 @@ plt.show(block=False)
 ## subject comparison analyses
 allParams = pd.DataFrame(index=range(len(subList)*3), columns=['thresh', 'slope', 'gamma', 'lambda','subject', 'laserLocation'])
 allCIs = pd.DataFrame(index=range(len(subList)*3), columns=['thresh', 'slope', 'gamma', 'lambda','subject', 'laserLocation'])
+visCP = pd.DataFrame(index=range(len(subList)*3), columns=['RT0','RT bias', 'RT peakiness','subject', 'laserLocation'])
+moCP = pd.DataFrame(index=range(len(subList)*3), columns=['RT0','RT bias', 'RT peakiness','subject', 'laserLocation'])
 laserLocs = ['Left','Right','Control']
 cnt = 0
 for i in range(3):
@@ -610,15 +619,21 @@ for i in range(3):
         allParams.iloc[cnt,:4] = (visPsychoParams[j][i])
         allParams.iloc[cnt,4] = subList[j]
         allParams.iloc[cnt,5] = laserLocs[i]
+        visCP.iloc[cnt,:3] = visChronoParams[j][i]
+        visCP.iloc[cnt,3] = subList[j]
+        visCP.iloc[cnt,4] = laserLocs[i]
+        moCP.iloc[cnt,:3] = moChronoParams[j][i]
+        moCP.iloc[cnt,3] = subList[j]
+        moCP.iloc[cnt,4] = laserLocs[i]
         allCIs.iloc[cnt,:4] = visPsychoCIs[j][i]
         allCIs.iloc[cnt,4] = subList[j]
         allCIs.iloc[cnt,5] = laserLocs[i]
         cnt+=1
 
 allParams.slope = 1/allParams.slope
-colors = ['light blue', 'light green','light violet','dusty orange','black']
-pal = sns.dark_palette('blue') 
+pal = sns.color_palette('colorblind') 
 fig, axs = plt.subplots(nrows=2,ncols=2)
+fig.suptitle('Visual Cortex Inactivation')
 ax1=axs[0,0]
 sns.barplot(x='laserLocation', y='thresh', data=allParams,ax=ax1,ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='thresh', data=allParams, hue='subject',ax=ax1)
@@ -670,6 +685,7 @@ for i in range(3):
         cnt+=1
 moAllParams.slope = 1/moAllParams.slope
 fig, axs = plt.subplots(nrows=2,ncols=2)
+fig.suptitle('Motor Cortex Inactivation')
 ax1=axs[0,0]
 sns.barplot(x='laserLocation', y='thresh', data=moAllParams,ax=ax1,ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='thresh', data=moAllParams, hue='subject',ax=ax1)
@@ -706,6 +722,70 @@ ax4.set_ylabel('left lapse\n(fraction contrast)')
 
 plt.show(block=False)
 
+
+fig, axs = plt.subplots(nrows=2,ncols=2)
+fig.suptitle('Visual Cortex Inactivation')
+ax1=axs[0,0]
+sns.barplot(x='laserLocation', y='RT0', data=visCP,ax=ax1,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='RT0', data=visCP, hue='subject',ax=ax1)
+sns.pointplot(x='laserLocation', y='RT0', data=visCP,hue='subject', ax=ax1, palette=pal)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'RT0', ax1)
+ax1.get_legend().remove()
+ax1.set_xlabel('')
+ax1.set_ylabel('Reaction time at 0 contrast\n(s)')
+
+ax2 = axs[1,0]
+sns.barplot(x='laserLocation', y='RT bias', data=visCP,ax=ax2,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='RT bias', data=visCP, hue='subject',ax=ax2)
+sns.pointplot(x='laserLocation', y='RT bias', data=visCP,hue='subject', ax=ax2, palette=pal)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'RT bias', ax2)
+ax2.get_legend().remove()
+ax2.set_xlabel('')
+ax2.set_ylabel('Difference between left and right\n reaction times (s)')
+
+ax4 = axs[1,1]
+sns.barplot(x='laserLocation', y='RT peakiness', data=visCP,ax=ax4,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='RT peakiness', data=visCP, hue='subject',ax=ax4)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'RT peakiness', ax4)
+sns.pointplot(x='laserLocation', y='RT peakiness', data=visCP,hue='subject', ax=ax4, palette=pal)
+ax4.get_legend().remove()
+ax4.set_ylabel('ratio of RT for high\nand low contrasts')
+
+plt.show(block=False)
+
+
+fig, axs = plt.subplots(nrows=2,ncols=2)
+fig.suptitle('Motor Cortex Inactivation')
+ax1=axs[0,0]
+sns.barplot(x='laserLocation', y='RT0', data=moCP,ax=ax1,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='RT0', data=moCP, hue='subject',ax=ax1)
+sns.pointplot(x='laserLocation', y='RT0', data=moCP,hue='subject', ax=ax1, palette=pal)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'RT0', ax1)
+ax1.get_legend().remove()
+ax1.set_xlabel('')
+ax1.set_ylabel('Reaction time at 0 contrast\n(s)')
+
+ax2 = axs[1,0]
+sns.barplot(x='laserLocation', y='RT bias', data=moCP,ax=ax2,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='RT bias', data=moCP, hue='subject',ax=ax2)
+sns.pointplot(x='laserLocation', y='RT bias', data=moCP,hue='subject', ax=ax2, palette=pal)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'RT bias', ax2)
+ax2.get_legend().remove()
+ax2.set_xlabel('')
+ax2.set_ylabel('Difference between left and right\n reaction times (s)')
+
+ax4 = axs[1,1]
+sns.barplot(x='laserLocation', y='RT peakiness', data=moCP,ax=ax4,ci=None, palette='Greys')
+# sns.scatterplot(x='laserLocation', y='RT peakiness', data=moCP, hue='subject',ax=ax4)
+# err_bar_from_CIs(allCIs, 'laserLocation', 'RT peakiness', ax4)
+sns.pointplot(x='laserLocation', y='RT peakiness', data=moCP,hue='subject', ax=ax4, palette=pal)
+ax4.get_legend().remove()
+ax4.set_ylabel('ratio of RT for high\nand low contrasts')
+
+plt.show(block=False)
+
+
+
 vLeft = allParams.iloc[:4]
 vRight = allParams.iloc[5:9]
 vControl = allParams.iloc[10:14]
@@ -714,7 +794,22 @@ mRight = moAllParams.iloc[5:9]
 mControl = moAllParams.iloc[10:14]
 anovaP =  pd.DataFrame(index=['vis','mo'], columns=['thresh', 'slope', 'gamma', 'lambda']) 
 for i in anovaP.columns:
-    t1, p1 =  scipy.stats.ttest_ind(np.array(vLeft[i]), np.array(vRight[i]), np.array(vControl[i])) 
-    t2, p2 = scipy.stats.ttest_ind(np.array(mLeft[i]), np.array(mRight[i]), np.array(mControl[i]))
+    f1, p1 =  scipy.stats.f_oneway(np.array(vLeft[i]), np.array(vRight[i]), np.array(vControl[i])) 
+    f2, p2 = scipy.stats.f_oneway(np.array(mLeft[i]), np.array(mRight[i]), np.array(mControl[i]))
     anovaP[i]['vis'] = p1
     anovaP[i]['mo'] = p2
+print('visResults:\n', anovaP)
+
+vLeft = visCP.iloc[:4]
+vRight = visCP.iloc[5:9]
+vControl = visCP.iloc[10:14]
+mLeft = moCP.iloc[:4]
+mRight = moCP.iloc[5:9]
+mControl = moCP.iloc[10:14]
+anovaP =  pd.DataFrame(index=['vis','mo'], columns=['RT0', 'RT bias', 'RT peakiness']) 
+for i in anovaP.columns:
+    f1, p1 =  scipy.stats.f_oneway(np.array(vLeft[i]), np.array(vRight[i]), np.array(vControl[i])) 
+    f2, p2 = scipy.stats.f_oneway(np.array(mLeft[i]), np.array(mRight[i]), np.array(mControl[i]))
+    anovaP[i]['vis'] = p1
+    anovaP[i]['mo'] = p2
+print('moResults:\n', anovaP)
