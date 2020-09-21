@@ -379,7 +379,7 @@ if platform.system() == 'Darwin':
     allenOutline = np.load('/Users/ckrasnia/Desktop/Zador_Lab/scanData/allen_dorsal_outline')
 else:
     allenOutline = np.load(r'F:\allen_dorsal_outline')
-data = query.align_laser2behavior(['CSK-scan-014','CSK-scan-015','CSK-scan-016','CSK-scan-019'])
+data = query.align_laser2behavior(['CSK-scan-020','CSK-scan-022'])
 
 bigData = [pd.concat(data)]
 data.append(bigData[0])
