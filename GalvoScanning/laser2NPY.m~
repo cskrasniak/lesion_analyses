@@ -2,11 +2,11 @@
 %%writing it as a NPY file to the subjects folder this works for the file
 %%format from the first laser scanning experiments through to 2019-XX-XX
 
-baseDir= "/Users/ckrasnia/Desktop/matlab_scanData";
+baseDir= "/Users/ckrasnia/Desktop/";
 saveBase = "/Users/ckrasnia/Desktop/Zador_Lab/scanData/Subjects/";
 cd(baseDir)
 subs = dir;
-for sub = 4:length(subs)
+for sub = 3:length(subs)
     cd(baseDir)
     subject = subs(sub).name;
     cd(fullfile(baseDir,subject))
@@ -29,7 +29,7 @@ for sub = 4:length(subs)
                 mkdir(fullfile(saveBase,subject,exptDay),exptNum)
                 cd(f1)
             end
-            writeNPY(data_struct.XY_list,"laserData")
+            writeNPY(XY_list,"laserData")
             cd(fullfile(baseDir,subject,exptDay))
         end
         

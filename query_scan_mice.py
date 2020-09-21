@@ -116,60 +116,81 @@ def align_laser2behavior(subjects):
                 if run == '.DS_Store':
                     continue
                 print('Run #{}'.format(run))
-                os.chdir(os.path.join(dataPath, sub, day, run))
+                if os.path.isdir(os.path.join(dataPath, sub, day, run)):
+                    os.chdir(os.path.join(dataPath, sub, day, run))
                 if len(os.listdir()) >= 1:  # if there is laser data in the folder, load it
-                    ld = np.load("laserData")
+                    try:
+                        lasloc = pd.read_csv('laserLoc.csv') # addition to load laserLocation data if present
+                        ll = list(lasloc.Var1)
+                        if len(ll) - 1 ==np.size(behav,0):
+                            behav['laserLoc'] = ll[:-1]
+                            training.append(behav)
+                        elif len(ll) == np.size(behav, 0) - 1:
+                            behav.drop(behav.tail(1).index, inplace=True)
+                            behav['laserOn'] = ll[:]
+                            training.append(behav)
+                        elif len(ll) == np.size(behav, 0):
+                            behav['laserOn'] = ll[:]
+                            training.append(behav)
+                    except:
+                        pass
+                    try:
+                        ld = np.load("laserData")
+                        if len(ld) - 1 == np.size(behav, 0):
+                            if np.shape(ld)[1] == 1:
+                                behav['laserOn'] = ld[:-1, 0]
+                                training.append(behav)
+                            elif ld[0, 2].any():
+                                behav['laserPosX'] = ld[:-1, 0]
+                                behav['laserPosY'] = ld[:-1, 1]
+                                training.append(behav)
+                            else:
+                                print('skipping session {} {}, marked as "laser off"'.format(day, run))
+        
+                        elif len(ld) == np.size(behav, 0) - 1:
+                            if np.shape(ld)[1] == 1:
+                                behav.drop(behav.tail(1).index, inplace=True)
+                                behav['laserOn'] = ld[:, 0]
+                                training.append(behav)
+                            elif ld[0, 2].any():             
+                                behav.drop(behav.tail(1).index, inplace=True)
+                                behav['laserPosX'] = ld[:, 0]
+                                behav['laserPosY'] = ld[:, 1]
+                                training.append(behav)
+                            else:
+                                print('skipping session {} {}, marked as "laser off"'.format(day, run))
+                                
+                        elif len(ld) - 2 == np.size(behav, 0):
+                            if np.shape(ld)[1] == 1:
+                                behav['laserOn'] = ld[:-2, 0]
+                                training.append(behav)
+                            elif ld[0, 2].any():
+                                behav['laserPosX'] = ld[:-1, 0]
+                                behav['laserPosY'] = ld[:-1, 1]
+                                training.append(behav)
+                            else:
+                                print('skipping session {} {}, marked as "laser off"'.format(day, run))
+        
+                        elif len(ld) == np.size(behav, 0):
+                            if np.shape(ld)[1] == 1:
+                                behav['laserOn'] = ld[:, 0]
+                                training.append(behav)
+                            elif ld[0, 2].any():  # if marked 'laser on'
+                                behav['laserPosX'] = ld[:, 0]
+                                behav['laserPosY'] = ld[:, 1]
+                                training.append(behav)
+                            elif not ld[0, 2].all():
+                                print('skipping session {} {}, marked as "laser off"'.format(day, run))
+                            
+                        else:  # if they aren't matching or one off by the laser longer, I can't trust it
+                            print('cannot align, for session {} laser #: {} trials #: {}'.format(day,
+                                  len(ld), np.size(behav, 0)))
+               
+                    except:
+                        pass
 # if the laser data is one longer than the behavior, remove the last laser and align to the start
-                if len(ld) - 1 == np.size(behav, 0):
-                    if np.shape(ld)[1] == 1:
-                        behav['laserOn'] = ld[:-1, 0]
-                        training.append(behav)
-                    elif ld[0, 2].any():
-                        behav['laserPosX'] = ld[:-1, 0]
-                        behav['laserPosY'] = ld[:-1, 1]
-                        training.append(behav)
-                    else:
-                        print('skipping session {} {}, marked as "laser off"'.format(day, run))
-
-                elif len(ld) == np.size(behav, 0) - 1:
-                    if np.shape(ld)[1] == 1:
-                        behav.drop(behav.tail(1).index, inplace=True)
-                        behav['laserOn'] = ld[:, 0]
-                        training.append(behav)
-                    elif ld[0, 2].any():             
-                        behav.drop(behav.tail(1).index, inplace=True)
-                        behav['laserPosX'] = ld[:, 0]
-                        behav['laserPosY'] = ld[:, 1]
-                        training.append(behav)
-                    else:
-                        print('skipping session {} {}, marked as "laser off"'.format(day, run))
-                        
-                elif len(ld) - 2 == np.size(behav, 0):
-                    if np.shape(ld)[1] == 1:
-                        behav['laserOn'] = ld[:-2, 0]
-                        training.append(behav)
-                    elif ld[0, 2].any():
-                        behav['laserPosX'] = ld[:-1, 0]
-                        behav['laserPosY'] = ld[:-1, 1]
-                        training.append(behav)
-                    else:
-                        print('skipping session {} {}, marked as "laser off"'.format(day, run))
-
-                elif len(ld) == np.size(behav, 0):
-                    if np.shape(ld)[1] == 1:
-                        behav['laserOn'] = ld[:, 0]
-                        training.append(behav)
-                    elif ld[0, 2].any():  # if marked 'laser on'
-                        behav['laserPosX'] = ld[:, 0]
-                        behav['laserPosY'] = ld[:, 1]
-                        training.append(behav)
-                    elif not ld[0, 2].all():
-                        print('skipping session {} {}, marked as "laser off"'.format(day, run))
-                    
-                else:  # if they aren't matching or one off by the laser longer, I can't trust it
-                    print('cannot align, for session {} laser #: {} trials #: {}'.format(day,
-                          len(ld), np.size(behav, 0)))
-              
+                
+       
         data = pd.concat(training, ignore_index=True)
         allData.append(data)
     return allData

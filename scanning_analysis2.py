@@ -268,33 +268,28 @@ def plot_from_spots(spotlist, psychoSpotData, spots, color, ax, plotType='psycho
 
         if bs:
         ## Bootstrap confidence intervals
-            nboots = 10
-            bootFits = pd.DataFrame(columns=['threshold','slope','gamma','lambda'], index=range(nboots))
-            bootData = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.array([])]*len(psychoSpotData[0][1])]
-            bootData[0] = psycho[0]
-            cnt=0
-            print('bootstrapping errorbars...', sep=' ', end='')
-            for i in range(nboots):
-                if not(cnt % 5):
-                    print(int(cnt/nboots*100), sep=' ', end='%,', flush=True)
-                for j in range(len(tempPsych)):
-                    bootData[2][j] = np.random.choice(tempPsych[j],size=int(len(tempPsych[j])/1.25), replace=True)                
-                    bootData[1][j] = len(bootData[2][j])
-                    bootData[2][j] = np.mean(bootData[2][j])
-                fitParams = []
-                fitLikes = []
-                for repeat in range(5):
-                    parStart = np.array([-5+np.random.rand()*10,0+np.random.rand()*100, 0+np.random.rand(), 0+np.random.rand()])
-                    pars, L = mle_fit_psycho(bootData, P_model='erf_psycho_2gammas',
-                                                                parstart=np.array([0, 50, .5, .5]),
-                                                                parmin=np.array([-5, 0., 0., 0.]),
-                                                                parmax=np.array([5, 100., 1, 1]),
-                                                                nfits=2)
-                    
-                    fitParams.append(pars)
-                    fitLikes.append(L)
-                cnt+=1
-                bootFits.iloc[i] = fitParams[np.where(min(fitLikes))[0][0]]
+        nboots = 500
+        bootFits = pd.DataFrame(columns=['threshold','slope','gamma','lambda'], index=range(nboots))
+        bootData = [[],[0 for i in range(len(psychoSpotData[0][1]))],[np.array([])]*len(psychoSpotData[0][1])]
+        bootData[0] = psycho[0]
+        cnt=0
+        print('bootstrapping errorbars...', sep=' ', end='')
+        for i in range(nboots):
+            if not(cnt % 5):
+                print(int(cnt/nboots*100), sep=' ', end='%,', flush=True)
+            for j in range(len(tempPsych)):
+                bootData[2][j] = np.random.choice(tempPsych[j],size=int(len(tempPsych[j])/1.25), replace=True)                
+                bootData[1][j] = len(bootData[2][j])
+                bootData[2][j] = np.mean(bootData[2][j])
+            fitParams = []
+            fitLikes = []
+            for repeat in range(10):
+                parStart = np.array([-5+np.random.rand()*10,0+np.random.rand()*100, 0+np.random.rand(), 0+np.random.rand()])
+                pars, L = mle_fit_psycho(bootData, P_model='erf_psycho_2gammas',
+                                                            parstart=np.array([0, 50, .5, .5]),
+                                                            parmin=np.array([-5, 0., 0., 0.]),
+                                                            parmax=np.array([5, 100., 1, 1]),
+                                                            nfits=20)
                 
 
             a = .05
@@ -709,35 +704,35 @@ fig.suptitle('Motor Cortex Inactivation')
 ax1=axs[0,0]
 sns.barplot(x='laserLocation', y='thresh', data=moAllParams,ax=ax1, palette=pal) # ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='thresh', data=moAllParams, hue='subject',ax=ax1)
-# sns.pointplot(x='laserLocation', y='thresh', data=moAllParams,hue='subject', ax=ax1, palette=pal)
-# err_bar_from_CIs(allCIs, 'laserLocation', 'thresh', ax1)
-# ax1.get_legend().remove()
+sns.pointplot(x='laserLocation', y='thresh', data=moAllParams,hue='subject', ax=ax1, palette=pal)
+err_bar_from_CIs(allCIs, 'laserLocation', 'thresh', ax1)
+ax1.get_legend().remove()
 ax1.set_xlabel('')
 ax1.set_ylabel('detection threshold\n(contrast fraction)')
 
 ax2 = axs[0,1]
 sns.barplot(x='laserLocation', y='slope', data=moAllParams,ax=ax2, palette=pal) # ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='slope', data=moAllParams, hue='subject',ax=ax2)
-# sns.pointplot(x='laserLocation', y='slope', data=moAllParams,hue='subject', ax=ax2, palette=pal)
-# err_bar_from_CIs(allCIs, 'laserLocation', 'slope', ax2)
-# ax2.get_legend().remove()
+sns.pointplot(x='laserLocation', y='slope', data=moAllParams,hue='subject', ax=ax2, palette=pal)
+err_bar_from_CIs(allCIs, 'laserLocation', 'slope', ax2)
+ax2.get_legend().remove()
 ax2.set_xlabel('')
 ax2.set_ylabel('slope\n(choose left/contrast)')
 
 ax3 = axs[1,0]
 sns.barplot(x='laserLocation', y='gamma', data=moAllParams,ax=ax3, palette=pal) # ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='gamma', data=moAllParams, hue='subject',ax=ax3)
-# err_bar_from_CIs(allCIs, 'laserLocation', 'gamma', ax3)
-# sns.pointplot(x='laserLocation', y='gamma', data=moAllParams,hue='subject', ax=ax3, palette=pal)
-# ax3.get_legend().remove()
+err_bar_from_CIs(allCIs, 'laserLocation', 'gamma', ax3)
+sns.pointplot(x='laserLocation', y='gamma', data=moAllParams,hue='subject', ax=ax3, palette=pal)
+ax3.get_legend().remove()
 ax3.set_ylabel('right lapse\n(fraction contrast)')
 
 ax4 = axs[1,1]
 sns.barplot(x='laserLocation', y='lambda', data=moAllParams,ax=ax4, palette=pal) # ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='lambda', data=moAllParams, hue='subject',ax=ax4)
-# err_bar_from_CIs(allCIs, 'laserLocation', 'lambda', ax4)
-# sns.pointplot(x='laserLocation', y='lambda', data=moAllParams,hue='subject', ax=ax4, palette=pal)
-# ax4.get_legend().remove()
+err_bar_from_CIs(allCIs, 'laserLocation', 'lambda', ax4)
+sns.pointplot(x='laserLocation', y='lambda', data=moAllParams,hue='subject', ax=ax4, palette=pal)
+ax4.get_legend().remove()
 ax4.set_ylabel('left lapse\n(fraction contrast)')
 
 plt.show(block=False)
@@ -748,27 +743,27 @@ fig.suptitle('Visual Cortex Inactivation')
 ax1=axs[0,0]
 sns.barplot(x='laserLocation', y='RT0', data=visCP,ax=ax1, palette=pal) # ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='RT0', data=visCP, hue='subject',ax=ax1)
-# sns.pointplot(x='laserLocation', y='RT0', data=visCP,hue='subject', ax=ax1, palette=pal)
-# err_bar_from_CIs(allCIs, 'laserLocation', 'RT0', ax1)
-# ax1.get_legend().remove()
+sns.pointplot(x='laserLocation', y='RT0', data=visCP,hue='subject', ax=ax1, palette=pal)
+err_bar_from_CIs(allCIs, 'laserLocation', 'RT0', ax1)
+ax1.get_legend().remove()
 ax1.set_xlabel('')
 ax1.set_ylabel('Reaction time at 0 contrast\n(s)')
 
 ax2 = axs[1,0]
 sns.barplot(x='laserLocation', y='RT bias', data=visCP,ax=ax2, palette=pal) # ,ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='RT bias', data=visCP, hue='subject',ax=ax2)
-# sns.pointplot(x='laserLocation', y='RT bias', data=visCP,hue='subject', ax=ax2, palette=pal)
-# err_bar_from_CIs(allCIs, 'laserLocation', 'RT bias', ax2)
-# ax2.get_legend().remove()
+sns.pointplot(x='laserLocation', y='RT bias', data=visCP,hue='subject', ax=ax2, palette=pal)
+err_bar_from_CIs(allCIs, 'laserLocation', 'RT bias', ax2)
+ax2.get_legend().remove()
 ax2.set_xlabel('')
 ax2.set_ylabel('Difference between left and right\n reaction times (s)')
 
 ax4 = axs[1,1]
 sns.barplot(x='laserLocation', y='RT peakiness', data=visCP,ax=ax4, palette=pal) # ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='RT peakiness', data=visCP, hue='subject',ax=ax4)
-# err_bar_from_CIs(allCIs, 'laserLocation', 'RT peakiness', ax4)
-# sns.pointplot(x='laserLocation', y='RT peakiness', data=visCP,hue='subject', ax=ax4, palette=pal)
-# ax4.get_legend().remove()
+err_bar_from_CIs(allCIs, 'laserLocation', 'RT peakiness', ax4)
+sns.pointplot(x='laserLocation', y='RT peakiness', data=visCP,hue='subject', ax=ax4, palette=pal)
+ax4.get_legend().remove()
 ax4.set_ylabel('ratio of RT for high\nand low contrasts')
 
 plt.show(block=False)
@@ -779,18 +774,18 @@ fig.suptitle('Motor Cortex Inactivation')
 ax1=axs[0,0]
 sns.barplot(x='laserLocation', y='RT0', data=moCP,ax=ax1, palette=pal) # ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='RT0', data=moCP, hue='subject',ax=ax1)
-# sns.pointplot(x='laserLocation', y='RT0', data=moCP,hue='subject', ax=ax1, palette=pal)
-# err_bar_from_CIs(allCIs, 'laserLocation', 'RT0', ax1)
-# ax1.get_legend().remove()
+sns.pointplot(x='laserLocation', y='RT0', data=moCP,hue='subject', ax=ax1, palette=pal)
+err_bar_from_CIs(allCIs, 'laserLocation', 'RT0', ax1)
+ax1.get_legend().remove()
 ax1.set_xlabel('')
 ax1.set_ylabel('Reaction time at 0 contrast\n(s)')
 
 ax2 = axs[1,0]
 sns.barplot(x='laserLocation', y='RT bias', data=moCP,ax=ax2, palette=pal) # ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='RT bias', data=moCP, hue='subject',ax=ax2)
-# sns.pointplot(x='laserLocation', y='RT bias', data=moCP,hue='subject', ax=ax2, palette=pal)
-# err_bar_from_CIs(allCIs, 'laserLocation', 'RT bias', ax2)
-# ax2.get_legend().remove()
+sns.pointplot(x='laserLocation', y='RT bias', data=moCP,hue='subject', ax=ax2, palette=pal)
+err_bar_from_CIs(allCIs, 'laserLocation', 'RT bias', ax2)
+ax2.get_legend().remove()
 ax2.set_xlabel('')
 ax2.set_ylabel('Difference between left and right\n reaction times (s)')
 ax2.set_ylim(-.45, .45)
@@ -798,9 +793,9 @@ ax2.set_ylim(-.45, .45)
 ax4 = axs[1,1]
 sns.barplot(x='laserLocation', y='RT peakiness', data=moCP,ax=ax4, palette=pal) # ci=None, palette='Greys')
 # sns.scatterplot(x='laserLocation', y='RT peakiness', data=moCP, hue='subject',ax=ax4)
-# err_bar_from_CIs(allCIs, 'laserLocation', 'RT peakiness', ax4)
-# sns.pointplot(x='laserLocation', y='RT peakiness', data=moCP,hue='subject', ax=ax4, palette=pal)
-# ax4.get_legend().remove()
+err_bar_from_CIs(allCIs, 'laserLocation', 'RT peakiness', ax4)
+sns.pointplot(x='laserLocation', y='RT peakiness', data=moCP,hue='subject', ax=ax4, palette=pal)
+ax4.get_legend().remove()
 ax4.set_ylabel('ratio of RT for high\nand low contrasts')
 
 plt.show(block=False)
