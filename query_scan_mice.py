@@ -104,6 +104,8 @@ def align_laser2behavior(subjects):
         training = []
 
         for day in days: # loop over days
+            if day == '.DS_Store':
+                continue
             os.chdir(dataPath)
             os.chdir(sub)
             runs = os.listdir(day)
@@ -111,6 +113,8 @@ def align_laser2behavior(subjects):
             behav = behav[0]
 
             for run in runs:
+                if run == '.DS_Store':
+                    continue
                 print('Run #{}'.format(run))
                 os.chdir(os.path.join(dataPath, sub, day, run))
                 if len(os.listdir()) >= 1:  # if there is laser data in the folder, load it
