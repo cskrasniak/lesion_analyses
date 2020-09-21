@@ -18,6 +18,9 @@ for sub = 4:length(subs)
             files = dir;
         end
         for file = 3:length(files)
+            if strcmp(files(file).name,'.DS_Store')
+                continue
+            end
             load(files(file).name)
             fileparts = split(files(file).name,"_");suffix = split(fileparts(end),".");
             exptNum = strcat("00",suffix(1));
