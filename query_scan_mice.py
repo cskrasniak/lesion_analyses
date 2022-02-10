@@ -1,4 +1,4 @@
-from oneibl.one import ONE
+from one.api import ONE
 import numpy as np
 import pandas as pd
 from ibl_pipeline import subject, behavior
@@ -16,19 +16,16 @@ def ONE_query_scan_mice(subject, date_range):
     dataset_types = ['trials.contrastRight', 'trials.feedbackType',
                      'trials.response_times', 'trials.contrastLeft',
                      'trials.choice', 'trials.goCueTrigger_times']
-    data_DF = pd.DataFrame(columns=['contrastRight', 'feedback', 'response_times', 'contrastLeft',
-                                    'choice', 'goCueTimes'])
+    data_DF = pd.DataFrame()
 
     # loop over sessions
     for ses in range(len(eid4)):
-        scan4 = one.load(eid4[ses], dataset_types=dataset_types, dclass_output=True)
-        if scan4.dataset_id:
-            DF = pd.DataFrame(np.transpose(np.array(scan4.data)),
-                              columns=['contrastRight', 'feedback', 'response_times',
-                                       'contrastLeft', 'choice', 'goCueTimes'])
+        scan4 = one.load_object(eid4[0], 'trials', collection='alf')
+        if scan4.stimOn_times:
+            DF = scan4.to_df()
             nans = np.isnan(DF)
             DF[nans] = 0  # make all nans in contrasts 0 so I can subtract them
-            DF['EID'] = [eid4[ses]] * np.size(scan4.data, 1)
+            DF['EID'] = eid4[ses]
             data_DF = data_DF.append(DF)
     data_DF['signedContrast'] = np.subtract(data_DF.contrastLeft, data_DF.contrastRight)
     data_DF['rt'] = np.subtract(data_DF.response_times, data_DF.goCueTimes)
@@ -60,7 +57,7 @@ def DJ_fetch_DF(subjects, useDates):
                                                     'trial_id', 'trial_response_time',
                                                     'trial_response_choice',
                                                     'trial_go_cue_trigger_time', 'signed_contrast',
-                                                    'trial_feedback_type', as_dict=True))
+                                                    'trial_feedback_type','trial_first_movement_times', as_dict=True))
         elif isinstance(useDates, list):
             print('grabbing data from ' + sub + ' for ' + useDates[0])
             trials = behavior.TrialSet.Trial & subs & 'DATE(session_start_time) \
@@ -72,7 +69,7 @@ def DJ_fetch_DF(subjects, useDates):
                                                     'trial_id', 'trial_response_time',
                                                     'trial_response_choice',
                                                     'trial_go_cue_trigger_time', 'signed_contrast',
-                                                    'trial_feedback_type', as_dict=True))
+                                                    'trial_feedback_type','trial_first_movement_times', as_dict=True))
 
             useSessions = [ses.strftime('%Y-%m-%d') in useDates
                            for ses in allSessions['session_start_date']]
@@ -190,7 +187,6 @@ def align_laser2behavior(subjects):
                         pass
 # if the laser data is one longer than the behavior, remove the last laser and align to the start
                 
-       
         data = pd.concat(training, ignore_index=True)
         allData.append(data)
     return allData
